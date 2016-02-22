@@ -130,6 +130,10 @@ private:
      */
     void appendArray(BSONObjBuilder* bob, const BSONObj& array, bool nested = false) const;
 
+    // Returns the unique query path matched by the positional projection "matchfield".
+    boost::optional<StringData> positionalOperatorMatch(const MatchExpression* const query,
+                                                        StringData matchfield);
+
     // True if default at this level is to include.
     bool _include;
 
@@ -175,6 +179,9 @@ private:
     // The field names associated with any sortKey meta-projection(s). Empty if there is no sortKey
     // meta-projection.
     std::vector<StringData> _sortKeyMetaFields;
+
+    // The unique query path matched by the positional projection.
+    StringData _positionalProjectionPath;
 };
 
 }  // namespace mongo

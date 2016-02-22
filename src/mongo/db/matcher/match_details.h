@@ -33,6 +33,8 @@
 #include <memory>
 #include <string>
 
+#include "mongo/base/string_data.h"
+
 namespace mongo {
 
 /** Reports information about a match request. */
@@ -71,16 +73,20 @@ public:
     bool hasElemMatchKey() const;
     std::string elemMatchKey() const;
 
-    void setElemMatchKey(const std::string& elemMatchKey);
+    void setElemMatchKey(const StringData& path, const std::string& elemMatchKey);
 
     bool isValid() const {
         return _isValid;
     }
+
+    // Only record the array position for this query path.
+    void setPath(StringData path);
 
 private:
     bool _loadedRecord;
     bool _elemMatchKeyRequested;
     bool _isValid;
     std::unique_ptr<std::string> _elemMatchKey;
+    StringData _path;
 };
 }

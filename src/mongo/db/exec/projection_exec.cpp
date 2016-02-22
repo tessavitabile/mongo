@@ -170,7 +170,44 @@ ProjectionExec::ProjectionExec(const BSONObj& spec,
 
         if (mongoutils::str::contains(e.fieldName(), ".$")) {
             _arrayOpType = ARRAY_OP_POSITIONAL;
+
+            // Find the unique query path matched by the positional projection. We will only record
+            // the array position matched on this query path.
+            std::string matchfield = mongoutils::str::before(e.fieldName(), '.');
+            boost::optional<StringData> match =
+                positionalOperatorMatch(queryExpression, matchfield);
+            invariant(match);
+            _positionalProjectionPath = *match;
         }
+    }
+}
+
+boost::optional<StringData> ProjectionExec::positionalOperatorMatch(
+    const MatchExpression* const query, StringData matchfield) {
+    if (query->isLogical()) {
+        for (unsigned int i = 0; i < query->numChildren(); ++i) {
+            boost::optional<StringData> match =
+                positionalOperatorMatch(query->getChild(i), matchfield);
+            if (match) {
+                return match;
+            }
+        }
+        return boost::none;
+    } else {
+        StringData queryPath = query->path();
+        const char* pathRawData = queryPath.rawData();
+        // We have to make a distinction between match expressions that are
+        // initialized with an empty field/path name "" and match expressions
+        // for which the path is not meaningful (eg. $where and the internal
+        // expression type ALWAYS_FALSE).
+        if (!pathRawData) {
+            return boost::none;
+        }
+        std::string pathPrefix = mongoutils::str::before(pathRawData, '.');
+        if (pathPrefix == matchfield) {
+            return queryPath;
+        }
+        return boost::none;
     }
 }
 
@@ -262,15 +299,16 @@ Status ProjectionExec::transform(WorkingSetMember* member) const {
         // If it's a positional projection we need a MatchDetails.
         if (transformRequiresDetails()) {
             matchDetails.requestElemMatchKey();
+
+            // Only record the array position matched on this query path.
+            matchDetails.setPath(_positionalProjectionPath);
+
             verify(NULL != _queryExpression);
             verify(_queryExpression->matchesBSON(member->obj.value(), &matchDetails));
 
-            // Performing a positional projection requires valid MatchDetails. For example,
-            // ambiguity caused by multiple implicit array traversal predicates can lead to invalid
-            // match details.
-            if (!matchDetails.isValid()) {
-                return Status(ErrorCodes::InternalError, "ambiguous positional projection");
-            }
+            // Since we match a unique path that only appears once in the query, we should always
+            // have valid MatchDetails.
+            invariant(matchDetails.isValid());
         }
 
         Status projStatus = transform(member->obj.value(), &bob, &matchDetails);

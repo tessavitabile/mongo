@@ -57,7 +57,7 @@ bool ArrayMatchingMatchExpression::matches(const MatchableDocument* doc,
             continue;
 
         if (!amIRoot && details && details->needRecord() && !e.arrayOffset().eoo()) {
-            details->setElemMatchKey(e.arrayOffset().fieldName());
+            details->setElemMatchKey(path(), e.arrayOffset().fieldName());
         }
         return true;
     }
@@ -107,7 +107,7 @@ bool ElemMatchObjectMatchExpression::matchesArray(const BSONObj& anArray,
             continue;
         if (_sub->matchesBSON(inner.Obj(), NULL)) {
             if (details && details->needRecord()) {
-                details->setElemMatchKey(inner.fieldName());
+                details->setElemMatchKey(path(), inner.fieldName());
             }
             return true;
         }
@@ -171,7 +171,7 @@ bool ElemMatchValueMatchExpression::matchesArray(const BSONObj& anArray,
 
         if (_arrayElementMatchesAll(inner)) {
             if (details && details->needRecord()) {
-                details->setElemMatchKey(inner.fieldName());
+                details->setElemMatchKey(path(), inner.fieldName());
             }
             return true;
         }

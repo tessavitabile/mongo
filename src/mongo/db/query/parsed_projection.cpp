@@ -217,11 +217,20 @@ Status ParsedProjection::make(const BSONObj& spec,
                 return Status(ErrorCodes::BadValue, ss);
             }
 
-            std::string matchfield = mongoutils::str::before(e.fieldName(), '.');
-            if (!_hasPositionalOperatorMatch(query, matchfield)) {
+            unsigned int numPositionalOperatorMatches =
+                _numPositionalOperatorMatches(query, mongoutils::str::before(e.fieldName(), '.'));
+
+            if (numPositionalOperatorMatches == 0) {
                 mongoutils::str::stream ss;
                 ss << "Positional projection '" << e.fieldName() << "' does not "
                    << "match the query document.";
+                return Status(ErrorCodes::BadValue, ss);
+            }
+
+            if (numPositionalOperatorMatches > 1) {
+                mongoutils::str::stream ss;
+                ss << "Positional projection '" << e.fieldName() << "' matches multiple clauses "
+                   << "in the query document.";
                 return Status(ErrorCodes::BadValue, ss);
             }
 
@@ -302,14 +311,14 @@ bool ParsedProjection::_isPositionalOperator(const char* fieldName) {
 }
 
 // static
-bool ParsedProjection::_hasPositionalOperatorMatch(const MatchExpression* const query,
-                                                   const std::string& matchfield) {
+unsigned int ParsedProjection::_numPositionalOperatorMatches(const MatchExpression* const query,
+                                                             const std::string& matchfield) {
     if (query->isLogical()) {
+        unsigned int numMatches = 0;
         for (unsigned int i = 0; i < query->numChildren(); ++i) {
-            if (_hasPositionalOperatorMatch(query->getChild(i), matchfield)) {
-                return true;
-            }
+            numMatches += _numPositionalOperatorMatches(query->getChild(i), matchfield);
         }
+        return numMatches;
     } else {
         StringData queryPath = query->path();
         const char* pathRawData = queryPath.rawData();
@@ -318,12 +327,11 @@ bool ParsedProjection::_hasPositionalOperatorMatch(const MatchExpression* const 
         // for which the path is not meaningful (eg. $where and the internal
         // expression type ALWAYS_FALSE).
         if (!pathRawData) {
-            return false;
+            return 0;
         }
         std::string pathPrefix = mongoutils::str::before(pathRawData, '.');
-        return pathPrefix == matchfield;
+        return (pathPrefix == matchfield) ? 1 : 0;
     }
-    return false;
 }
 
 }  // namespace mongo

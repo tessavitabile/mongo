@@ -56,13 +56,18 @@ std::string MatchDetails::elemMatchKey() const {
     return *(_elemMatchKey.get());
 }
 
-void MatchDetails::setElemMatchKey(const std::string& elemMatchKey) {
-    if (_elemMatchKeyRequested) {
+void MatchDetails::setElemMatchKey(const StringData& path, const std::string& elemMatchKey) {
+    // If we have set a query path, check that the input path matches the query path.
+    if (_elemMatchKeyRequested && (_path.empty() || (path == _path))) {
         if (_elemMatchKey) {
             _isValid = false;
         }
         _elemMatchKey.reset(new std::string(elemMatchKey));
     }
+}
+
+void MatchDetails::setPath(StringData path) {
+    _path = path;
 }
 
 string MatchDetails::toString() const {

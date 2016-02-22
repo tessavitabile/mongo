@@ -111,16 +111,16 @@ private:
     static bool _isPositionalOperator(const char* fieldName);
 
     /**
-     * Returns true if the MatchExpression 'query' queries against
+     * Returns the number of times the MatchExpression 'query' queries against
      * the field named by 'matchfield'. This deeply traverses logical
      * nodes in the matchfield and returns true if any of the children
      * have the field (so if 'query' is {$and: [{a: 1}, {b: 1}]} and
-     * 'matchfield' is "b", the return value is true).
+     * 'matchfield' is "b", the return value is 1).
      *
      * Does not take ownership of 'query'.
      */
-    static bool _hasPositionalOperatorMatch(const MatchExpression* const query,
-                                            const std::string& matchfield);
+    static unsigned int _numPositionalOperatorMatches(const MatchExpression* const query,
+                                                      const std::string& matchfield);
 
     // TODO: stringdata?
     std::vector<std::string> _requiredFields;

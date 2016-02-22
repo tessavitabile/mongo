@@ -108,6 +108,22 @@ assert.eq( 1,
            t.find( { group:10, 'y.d': 4 }, { 'y.$':1 } ).toArray()[0].y.length,
           "single object match (regular index" );
 
+assert.eq( 2,
+           t.find( { group:3, 'y.bb':2, 'x.d':5 }, { 'y.$':1 } ).toArray()[0].y[0].bb,
+           "multi match, single proj 1" );
+
+assert.eq( 2,
+           t.find( { group:3, 'y.cc':3, 'x.b':2 }, { 'x.$':1 } ).toArray()[0].x[0].b,
+           "multi match, single proj 2" );
+
+assert.throws( function() {
+                   t.find( { group:3, 'x.b':1, 'x.c':3 }, { 'x.$':1 } ).toArray();
+               }, [], "throw on positional operator matching multiple clauses" );
+
+assert.throws( function() {
+                   t.find( { group:3, $and: [ { 'x.b':1 }, { 'x.b':3 } ] }, { 'x.$':1 } ).toArray();
+               }, [], "throw on positional operator matching multiple clauses" );
+
 if (false) {
 
     assert.eq( 2,       // SERVER-1013: allow multiple positional operators
@@ -121,15 +137,6 @@ if (false) {
     assert.eq( 2,        // SERVER-1243: allow multiple results from same matcher
                t.find( { group:2, x: { $elemMatchAll: { a:1 } } }, { 'x.$':1 } ).toArray()[0].x.length,
                "multi element match, single proj" );
-
-    assert.eq( 2,       // SERVER-1013: multiple array matches with one prositional operator
-               t.find( { group:3, 'y.bb':2, 'x.d':5 }, { 'y.$':1 } ).toArray()[0].y[0].bb,
-               "multi match, single proj 1" );
-
-    assert.eq( 2,       // SERVER-1013: multiple array matches with one positional operator
-              t.find( { group:3, 'y.cc':3, 'x.b':2 }, { 'x.$':1 } ).toArray()[0].x[0].b,
-              "multi match, single proj 2" );
-
 }
 
 //

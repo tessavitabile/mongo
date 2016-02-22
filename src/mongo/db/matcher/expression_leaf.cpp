@@ -58,7 +58,7 @@ bool LeafMatchExpression::matches(const MatchableDocument* doc, MatchDetails* de
         if (!matchesSingleElement(e.element()))
             continue;
         if (details && details->needRecord() && !e.arrayOffset().eoo()) {
-            details->setElemMatchKey(e.arrayOffset().fieldName());
+            details->setElemMatchKey(path(), e.arrayOffset().fieldName());
         }
         return true;
     }
@@ -470,7 +470,7 @@ bool TypeMatchExpression::matches(const MatchableDocument* doc, MatchDetails* de
         }
 
         if (details && details->needRecord() && !e.arrayOffset().eoo()) {
-            details->setElemMatchKey(e.arrayOffset().fieldName());
+            details->setElemMatchKey(path(), e.arrayOffset().fieldName());
         }
         return true;
     }
