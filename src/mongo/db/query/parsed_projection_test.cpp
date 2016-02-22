@@ -156,6 +156,8 @@ TEST(ParsedProjectionTest, InvalidPositionalOperatorProjections) {
     assertInvalidProjection("{a: 1, b: 1, c: 1}", "{'abc.$': 1}");
     assertInvalidProjection("{$or: [{a: 1}, {$or: [{b: 1}, {c: 1}]}]}", "{'d.$': 1}");
     assertInvalidProjection("{a: [1, 2, 3]}", "{'.$': 1}");
+    assertInvalidProjection("{$and: [{a: 1}, {a: 2}]}", "{'a.$': 1}");
+    assertInvalidProjection("{'a.b': 1, 'a.c': 2}", "{'a.$': 1}");
 }
 
 TEST(ParsedProjectionTest, ValidPositionalOperatorProjections) {
@@ -174,6 +176,7 @@ TEST(ParsedProjectionTest, ValidPositionalOperatorProjections) {
     createParsedProjection("{$and: [{$or: [{a: 1}, {$and: [{b: 1}, {c: 1}]}]}]}", "{'c.d.f.$': 1}");
     // Fields with empty name can be projected using the positional $ operator.
     createParsedProjection("{'': [1, 2, 3]}", "{'.$': 1}");
+    createParsedProjection("{a: 1, b: 2}", "{'a.$': 1}");
 }
 
 // Some match expressions (eg. $where) do not override MatchExpression::path()
