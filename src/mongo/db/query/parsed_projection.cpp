@@ -208,7 +208,6 @@ Status ParsedProjection::make(const BSONObj& spec,
                 return Status(ErrorCodes::BadValue,
                               "Cannot specify positional operator and $elemMatch.");
             }
-
             std::string after = mongoutils::str::after(e.fieldName(), ".$");
             if (mongoutils::str::contains(after, ".$")) {
                 mongoutils::str::stream ss;
@@ -217,8 +216,8 @@ Status ParsedProjection::make(const BSONObj& spec,
                 return Status(ErrorCodes::BadValue, ss);
             }
 
-            unsigned int numPositionalOperatorMatches =
-                _numPositionalOperatorMatches(query, mongoutils::str::before(e.fieldName(), '.'));
+            size_t numPositionalOperatorMatches =
+                _numPositionalOperatorMatches(query, mongoutils::str::before(e.fieldName(), '$'));
 
             if (numPositionalOperatorMatches == 0) {
                 mongoutils::str::stream ss;
@@ -311,11 +310,11 @@ bool ParsedProjection::_isPositionalOperator(const char* fieldName) {
 }
 
 // static
-unsigned int ParsedProjection::_numPositionalOperatorMatches(const MatchExpression* const query,
+size_t ParsedProjection::_numPositionalOperatorMatches(const MatchExpression* const query,
                                                              const std::string& matchfield) {
     if (query->isLogical()) {
-        unsigned int numMatches = 0;
-        for (unsigned int i = 0; i < query->numChildren(); ++i) {
+        size_t numMatches = 0;
+        for (size_t i = 0; i < query->numChildren(); ++i) {
             numMatches += _numPositionalOperatorMatches(query->getChild(i), matchfield);
         }
         return numMatches;
@@ -329,8 +328,9 @@ unsigned int ParsedProjection::_numPositionalOperatorMatches(const MatchExpressi
         if (!pathRawData) {
             return 0;
         }
-        std::string pathPrefix = mongoutils::str::before(pathRawData, '.');
-        return (pathPrefix == matchfield) ? 1 : 0;
+        std::string queryPathToMatch{pathRawData};
+        queryPathToMatch.append(".");
+        return static_cast<size_t>(mongoutils::str::startsWith(queryPathToMatch, matchfield));
     }
 }
 

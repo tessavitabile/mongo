@@ -119,7 +119,7 @@ private:
      *
      * Does not take ownership of 'query'.
      */
-    static unsigned int _numPositionalOperatorMatches(const MatchExpression* const query,
+    static size_t _numPositionalOperatorMatches(const MatchExpression* const query,
                                                       const std::string& matchfield);
 
     // TODO: stringdata?

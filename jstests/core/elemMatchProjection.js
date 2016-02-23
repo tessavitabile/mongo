@@ -29,6 +29,7 @@ for ( i = 0; i < 100; i++ ) {
     t.insert({ group: 12, x: { y : [ { a: 1, b: 1 }, { a: 1, b: 2} ] } } );
     t.insert({ group: 13, x: [ { a: 1, b: 1 }, {a: 1, b: 2 } ] } );
     t.insert({ group: 13, x: [ { a: 1, b: 2 }, {a: 1, b: 1 } ] } );
+    t.insert({ group: 14, x: [ { a: [ 1, 2 ] }, { b: [ 3, 4 ] } ] } );
 }
 t.ensureIndex({group:1, 'y.d':1}); // for regular index test (not sure if this is really adding anything useful)
 t.ensureIndex({group:1, covered:1}); // for covered index test
@@ -36,6 +37,10 @@ t.ensureIndex({group:1, covered:1}); // for covered index test
 //
 // SERVER-828:  Positional operator ($) projection tests
 //
+assert.eq( 2,
+           t.find( { group:1, x:2 }, { 'x.$':1 } ).toArray()[0].x[0],
+           "match scalar" );
+
 assert.eq( 1,
            t.find( { group:3, 'x.a':2 }, { 'x.$':1 } ).toArray()[0].x.length,
            "single object match (array length match)" );
@@ -116,6 +121,30 @@ assert.eq( 2,
            t.find( { group:3, 'y.cc':3, 'x.b':2 }, { 'x.$':1 } ).toArray()[0].x[0].b,
            "multi match, single proj 2" );
 
+assert.eq( 3,
+           t.find( { group:14, 'x.b':3 }, { 'x.b.$':1 } ).toArray()[0].x[0].b[0],
+           "match nested array" );
+
+assert.eq( 3,
+           t.find( { group:14, 'x.b':3 }, { 'x.$':1 } ).toArray()[0].x[0].b[0],
+           "match nested array" );
+
+assert.eq( 3,
+           t.find( { group:14, x:{ $elemMatch:{ b:3 } } }, { 'x.$':1 } ).toArray()[0].x[0].b[0],
+           "proj with document elemMatch" );
+
+assert.eq( 1,
+           t.find( { group:1, x:{ $elemMatch:{ $lt:2 } } }, { 'x.$':1 } ).toArray()[0].x[0],
+           "proj with value elemMatch" );
+
+assert.eq( 3,
+           t.find( { group:14, x:{ $elemMatch:{ b:3 } } }, { 'x.$.b':1 } ).toArray()[0].x[0].b[0],
+           "nesting after positional projection" );
+
+assert.eq( 3,
+           t.find( { group:14, x:{ $elemMatch:{ b:3 } } }, { 'x.$.c':1 } ).toArray()[0].x[0].b[0],
+           "nesting after positional projection does not check whole subdocument" );
+
 assert.throws( function() {
                    t.find( { group:3, 'x.b':1, 'x.c':3 }, { 'x.$':1 } ).toArray();
                }, [], "throw on positional operator matching multiple clauses" );
@@ -123,6 +152,18 @@ assert.throws( function() {
 assert.throws( function() {
                    t.find( { group:3, $and: [ { 'x.b':1 }, { 'x.b':3 } ] }, { 'x.$':1 } ).toArray();
                }, [], "throw on positional operator matching multiple clauses" );
+
+assert.throws( function() {
+                   t.find( { group:14, 'x.a':1 }, { 'x.b.$':1 } ).toArray();
+               }, [], "throw when positional operator does not match query" );
+
+assert.throws( function() {
+                   t.find( { group:1, x:1 }, { 'x.a.$':1 } ).toArray();
+               }, [], "throw when positional operator does not match query" );
+
+assert.throws( function() {
+                   t.find( { group:14, x:{ $elemMatch:{ b:3 } } }, { 'x.b.$':1 } ).toArray();
+               }, [], "throw when positional operator does not match query" );
 
 if (false) {
 

@@ -173,7 +173,7 @@ ProjectionExec::ProjectionExec(const BSONObj& spec,
 
             // Find the unique query path matched by the positional projection. We will only record
             // the array position matched on this query path.
-            std::string matchfield = mongoutils::str::before(e.fieldName(), '.');
+            std::string matchfield = mongoutils::str::before(e.fieldName(), '$');
             boost::optional<StringData> match =
                 positionalOperatorMatch(queryExpression, matchfield);
             invariant(match);
@@ -203,8 +203,9 @@ boost::optional<StringData> ProjectionExec::positionalOperatorMatch(
         if (!pathRawData) {
             return boost::none;
         }
-        std::string pathPrefix = mongoutils::str::before(pathRawData, '.');
-        if (pathPrefix == matchfield) {
+        std::string queryPathToMatch{pathRawData};
+        queryPathToMatch.append(".");
+        if (mongoutils::str::startsWith(queryPathToMatch, matchfield.toString())) {
             return queryPath;
         }
         return boost::none;
