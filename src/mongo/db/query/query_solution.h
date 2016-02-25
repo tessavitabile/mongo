@@ -556,6 +556,9 @@ struct ProjectionNode : public QuerySolutionNode {
     // supplying our covered data.  We can pre-compute which fields to include and cache that
     // data for later if we know we only have one index.
     BSONObj coveredKeyObj;
+
+    // If there is a positional projection, this is the unique path in the query it matches.
+    boost::optional<StringData> positionalProjectionPath;
 };
 
 struct SortKeyGeneratorNode : public QuerySolutionNode {

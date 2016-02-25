@@ -99,6 +99,10 @@ public:
         return _wantSortKey;
     }
 
+    const boost::optional<StringData> getPositionalProjectionPath() const {
+        return _positionalProjectionPath;
+    }
+
 private:
     /**
      * Must go through ::make
@@ -117,10 +121,14 @@ private:
      * have the field (so if 'query' is {$and: [{a: 1}, {b: 1}]} and
      * 'matchfield' is "b", the return value is 1).
      *
+     * Sets positionalProjectionPath to a matching path in the query.
+     *
      * Does not take ownership of 'query'.
      */
-    static size_t _numPositionalOperatorMatches(const MatchExpression* const query,
-                                                      const std::string& matchfield);
+    static size_t _numPositionalOperatorMatches(
+        const MatchExpression* const query,
+        const std::string& matchfield,
+        boost::optional<StringData>* positionalProjectionPath);
 
     // TODO: stringdata?
     std::vector<std::string> _requiredFields;
@@ -139,6 +147,9 @@ private:
 
     // Whether this projection includes a sortKey meta-projection.
     bool _wantSortKey = false;
+
+    // If there is a positional projection, this is the unique path in the query it matches.
+    boost::optional<StringData> _positionalProjectionPath;
 };
 
 }  // namespace mongo

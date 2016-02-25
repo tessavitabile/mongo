@@ -66,6 +66,8 @@ Status ParsedProjection::make(const BSONObj& spec,
     // Until we see a positional or elemMatch operator we're normal.
     ArrayOpType arrayOpType = ARRAY_OP_NORMAL;
 
+    boost::optional<StringData> positionalProjectionPath = boost::none;
+
     BSONObjIterator it(spec);
     while (it.more()) {
         BSONElement e = it.next();
@@ -216,8 +218,8 @@ Status ParsedProjection::make(const BSONObj& spec,
                 return Status(ErrorCodes::BadValue, ss);
             }
 
-            size_t numPositionalOperatorMatches =
-                _numPositionalOperatorMatches(query, mongoutils::str::before(e.fieldName(), '$'));
+            size_t numPositionalOperatorMatches = _numPositionalOperatorMatches(
+                query, mongoutils::str::before(e.fieldName(), '$'), &positionalProjectionPath);
 
             if (numPositionalOperatorMatches == 0) {
                 mongoutils::str::stream ss;
@@ -250,6 +252,9 @@ Status ParsedProjection::make(const BSONObj& spec,
     // The positional operator uses the MatchDetails from the query
     // expression to know which array element was matched.
     pp->_requiresMatchDetails = arrayOpType == ARRAY_OP_POSITIONAL;
+
+    // The query path matched by the positional projection.
+    pp->_positionalProjectionPath = positionalProjectionPath;
 
     // Save the raw spec.  It should be owned by the LiteParsedQuery.
     verify(spec.isOwned());
@@ -310,12 +315,15 @@ bool ParsedProjection::_isPositionalOperator(const char* fieldName) {
 }
 
 // static
-size_t ParsedProjection::_numPositionalOperatorMatches(const MatchExpression* const query,
-                                                             const std::string& matchfield) {
+size_t ParsedProjection::_numPositionalOperatorMatches(
+    const MatchExpression* const query,
+    const std::string& matchfield,
+    boost::optional<StringData>* positionalProjectionPath) {
     if (query->isLogical()) {
         size_t numMatches = 0;
         for (size_t i = 0; i < query->numChildren(); ++i) {
-            numMatches += _numPositionalOperatorMatches(query->getChild(i), matchfield);
+            numMatches += _numPositionalOperatorMatches(
+                query->getChild(i), matchfield, positionalProjectionPath);
         }
         return numMatches;
     } else {
@@ -330,7 +338,11 @@ size_t ParsedProjection::_numPositionalOperatorMatches(const MatchExpression* co
         }
         std::string queryPathToMatch{pathRawData};
         queryPathToMatch.append(".");
-        return static_cast<size_t>(mongoutils::str::startsWith(queryPathToMatch, matchfield));
+        if (mongoutils::str::startsWith(queryPathToMatch, matchfield)) {
+            *positionalProjectionPath = queryPath;
+            return 1;
+        }
+        return 0;
     }
 }
 

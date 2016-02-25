@@ -66,7 +66,8 @@ public:
 
     ProjectionExec(const BSONObj& spec,
                    const MatchExpression* queryExpression,
-                   const ExtensionsCallback& extensionsCallback);
+                   const ExtensionsCallback& extensionsCallback,
+                   const boost::optional<StringData> positionalProjectionPath);
     ~ProjectionExec();
 
     /**
@@ -129,10 +130,6 @@ private:
      * Deals with slice and calls appendArray to preserve the array-ness.
      */
     void appendArray(BSONObjBuilder* bob, const BSONObj& array, bool nested = false) const;
-
-    // Returns the unique query path matched by the positional projection "matchfield".
-    boost::optional<StringData> positionalOperatorMatch(const MatchExpression* const query,
-                                                        StringData matchfield);
 
     // True if default at this level is to include.
     bool _include;

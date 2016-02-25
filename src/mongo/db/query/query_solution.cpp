@@ -643,6 +643,7 @@ QuerySolutionNode* ProjectionNode::clone() const {
 
     copy->_sorts = this->_sorts;
     copy->fullExpression = this->fullExpression;
+    copy->positionalProjectionPath = this->positionalProjectionPath;
 
     // This MatchExpression* is owned by the canonical query, not by the
     // ProjectionNode. Just copying the pointer is fine.

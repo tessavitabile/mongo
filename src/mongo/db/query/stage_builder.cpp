@@ -137,6 +137,7 @@ PlanStage* buildStages(OperationContext* txn,
 
         ProjectionStageParams params(ExtensionsCallbackReal(txn, &collection->ns()));
         params.projObj = pn->projection;
+        params.positionalProjectionPath = pn->positionalProjectionPath;
 
         // Stuff the right data into the params depending on what proj impl we use.
         if (ProjectionNode::DEFAULT == pn->projType) {

@@ -270,6 +270,8 @@ Status prepareExecution(OperationContext* opCtx,
         if (NULL != canonicalQuery->getProj()) {
             ProjectionStageParams params(ExtensionsCallbackReal(opCtx, &collection->ns()));
             params.projObj = canonicalQuery->getProj()->getProjObj();
+            params.positionalProjectionPath =
+                canonicalQuery->getProj()->getPositionalProjectionPath();
 
             // Add a SortKeyGeneratorStage if there is a $meta sortKey projection.
             if (canonicalQuery->getProj()->wantSortKey()) {
@@ -628,6 +630,7 @@ StatusWith<unique_ptr<PlanStage>> applyProjection(OperationContext* txn,
     ProjectionStageParams params(ExtensionsCallbackReal(txn, &nsString));
     params.projObj = proj;
     params.fullExpression = cq->root();
+    params.positionalProjectionPath = cq->getProj()->getPositionalProjectionPath();
     return {make_unique<ProjectionStage>(txn, params, ws, root.release())};
 }
 

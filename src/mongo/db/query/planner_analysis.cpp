@@ -805,6 +805,7 @@ QuerySolution* QueryPlannerAnalysis::analyzeDataAccess(const CanonicalQuery& que
         projNode->projection = lpq.getProj();
         projNode->projType = projType;
         projNode->coveredKeyObj = coveredKeyObj;
+        projNode->positionalProjectionPath = query.getProj()->getPositionalProjectionPath();
         solnRoot = projNode;
     } else {
         // If there's no projection, we must fetch, as the user wants the entire doc.

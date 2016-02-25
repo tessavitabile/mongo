@@ -70,6 +70,9 @@ struct ProjectionStageParams {
 
     // Used for creating context for the match extensions processing. Not owned.
     const ExtensionsCallback* extensionsCallback;
+
+    // If there is a positional projection, this is the unique path in the query it matches.
+    boost::optional<StringData> positionalProjectionPath;
 };
 
 /**

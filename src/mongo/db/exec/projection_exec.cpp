@@ -74,7 +74,8 @@ ProjectionExec::ProjectionExec()
 
 ProjectionExec::ProjectionExec(const BSONObj& spec,
                                const MatchExpression* queryExpression,
-                               const ExtensionsCallback& extensionsCallback)
+                               const ExtensionsCallback& extensionsCallback,
+                               const boost::optional<StringData> positionalProjectionPath)
     : _include(true),
       _special(false),
       _source(spec),
@@ -170,45 +171,9 @@ ProjectionExec::ProjectionExec(const BSONObj& spec,
 
         if (mongoutils::str::contains(e.fieldName(), ".$")) {
             _arrayOpType = ARRAY_OP_POSITIONAL;
-
-            // Find the unique query path matched by the positional projection. We will only record
-            // the array position matched on this query path.
-            std::string matchfield = mongoutils::str::before(e.fieldName(), '$');
-            boost::optional<StringData> match =
-                positionalOperatorMatch(queryExpression, matchfield);
-            invariant(match);
-            _positionalProjectionPath = *match;
+            invariant(positionalProjectionPath);
+            _positionalProjectionPath = *positionalProjectionPath;
         }
-    }
-}
-
-boost::optional<StringData> ProjectionExec::positionalOperatorMatch(
-    const MatchExpression* const query, StringData matchfield) {
-    if (query->isLogical()) {
-        for (unsigned int i = 0; i < query->numChildren(); ++i) {
-            boost::optional<StringData> match =
-                positionalOperatorMatch(query->getChild(i), matchfield);
-            if (match) {
-                return match;
-            }
-        }
-        return boost::none;
-    } else {
-        StringData queryPath = query->path();
-        const char* pathRawData = queryPath.rawData();
-        // We have to make a distinction between match expressions that are
-        // initialized with an empty field/path name "" and match expressions
-        // for which the path is not meaningful (eg. $where and the internal
-        // expression type ALWAYS_FALSE).
-        if (!pathRawData) {
-            return boost::none;
-        }
-        std::string queryPathToMatch{pathRawData};
-        queryPathToMatch.append(".");
-        if (mongoutils::str::startsWith(queryPathToMatch, matchfield.toString())) {
-            return queryPath;
-        }
-        return boost::none;
     }
 }
 
