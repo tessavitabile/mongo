@@ -39,9 +39,241 @@ using namespace mongo;
 TEST(CollationSpecTest, SpecsWithNonEqualLocaleStringsAreNotEqual) {
     CollationSpec collationSpec1;
     collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
 
     CollationSpec collationSpec2;
     collationSpec2.localeID = "de";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualCaseSensitiveValuesAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = false;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualCaseOrderStringsAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "off";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualStrengthsAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 2;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualNumericCollationValuesAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = true;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualIgnoreAlternateCharactersValuesAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = false;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualAlternateCharactersStringsAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "space";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualCheckNormalizationValuesAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = true;
+    collationSpec2.french = false;
+
+    ASSERT_FALSE(collationSpec1 == collationSpec2);
+    ASSERT_TRUE(collationSpec1 != collationSpec2);
+}
+
+TEST(CollationSpecTest, SpecsWithNonEqualFrenchValuesAreNotEqual) {
+    CollationSpec collationSpec1;
+    collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
+
+    CollationSpec collationSpec2;
+    collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = true;
 
     ASSERT_FALSE(collationSpec1 == collationSpec2);
     ASSERT_TRUE(collationSpec1 != collationSpec2);
@@ -50,9 +282,25 @@ TEST(CollationSpecTest, SpecsWithNonEqualLocaleStringsAreNotEqual) {
 TEST(CollationSpecTest, EqualSpecs) {
     CollationSpec collationSpec1;
     collationSpec1.localeID = "fr";
+    collationSpec1.caseSensitive = true;
+    collationSpec1.caseOrder = "uppercaseFirst";
+    collationSpec1.strength = 1;
+    collationSpec1.numericCollation = false;
+    collationSpec1.ignoreAlternateCharacters = true;
+    collationSpec1.alternateCharacters = "all";
+    collationSpec1.checkNormalization = false;
+    collationSpec1.french = false;
 
     CollationSpec collationSpec2;
     collationSpec2.localeID = "fr";
+    collationSpec2.caseSensitive = true;
+    collationSpec2.caseOrder = "uppercaseFirst";
+    collationSpec2.strength = 1;
+    collationSpec2.numericCollation = false;
+    collationSpec2.ignoreAlternateCharacters = true;
+    collationSpec2.alternateCharacters = "all";
+    collationSpec2.checkNormalization = false;
+    collationSpec2.french = false;
 
     ASSERT_TRUE(collationSpec1 == collationSpec2);
     ASSERT_FALSE(collationSpec1 != collationSpec2);

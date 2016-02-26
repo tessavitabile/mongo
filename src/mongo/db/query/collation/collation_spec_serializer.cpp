@@ -38,6 +38,14 @@ namespace mongo {
 BSONObj CollationSpecSerializer::toBSON(const CollationSpec& spec) {
     BSONObjBuilder builder;
     builder.append(CollationSpec::kLocaleField, spec.localeID);
+    builder.append(CollationSpec::kCaseSensitiveField, spec.caseSensitive);
+    builder.append(CollationSpec::kCaseOrderField, spec.caseOrder);
+    builder.append(CollationSpec::kStrengthField, spec.strength);
+    builder.append(CollationSpec::kNumericCollationField, spec.numericCollation);
+    builder.append(CollationSpec::kIgnoreAlternateCharactersField, spec.ignoreAlternateCharacters);
+    builder.append(CollationSpec::kAlternateCharactersField, spec.alternateCharacters);
+    builder.append(CollationSpec::kCheckNormalizationField, spec.checkNormalization);
+    builder.append(CollationSpec::kFrenchField, spec.french);
     return builder.obj();
 }
 

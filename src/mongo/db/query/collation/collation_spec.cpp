@@ -33,5 +33,13 @@
 namespace mongo {
 
 const char* CollationSpec::kLocaleField = "locale";
+const char* CollationSpec::kCaseSensitiveField = "caseSensitive";
+const char* CollationSpec::kCaseOrderField = "caseOrder";
+const char* CollationSpec::kStrengthField = "strength";
+const char* CollationSpec::kNumericCollationField = "numericCollation";
+const char* CollationSpec::kIgnoreAlternateCharactersField = "ignoreAlternateCharacters";
+const char* CollationSpec::kAlternateCharactersField = "alternateCharacters";
+const char* CollationSpec::kCheckNormalizationField = "checkNormalization";
+const char* CollationSpec::kFrenchField = "french";
 
 }  // namespace mongo

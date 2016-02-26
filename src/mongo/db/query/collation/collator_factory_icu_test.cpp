@@ -27,7 +27,8 @@
  */
 
 #include "mongo/platform/basic.h"
-
+#include <unicode/errorcode.h>
+#include <unicode/coll.h>
 #include "mongo/db/query/collation/collator_factory_icu.h"
 
 #include "mongo/bson/bsonobjbuilder.h"
@@ -41,6 +42,14 @@ TEST(CollatorFactoryICUTest, LocaleStringParsesSuccessfully) {
     CollatorFactoryICU factory;
     auto collator = factory.makeFromBSON(BSON("locale"
                                               << "en_US"));
+    ASSERT_OK(collator.getStatus());
+    ASSERT_EQ("en_US", collator.getValue()->getSpec().localeID);
+}
+
+TEST(CollatorFactoryICUTest, LocaleStringCanonicalizesSuccessfully) {
+    CollatorFactoryICU factory;
+    auto collator = factory.makeFromBSON(BSON("locale"
+                                              << "EN_US"));
     ASSERT_OK(collator.getStatus());
     ASSERT_EQ("en_US", collator.getValue()->getSpec().localeID);
 }
@@ -66,6 +75,233 @@ TEST(CollatorFactoryICUTest, UnknownSpecFieldFailsToParse) {
                         << "field");
     CollatorFactoryICU factory;
     auto collator = factory.makeFromBSON(spec);
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, InvalidLocaleFieldFails) {
+    CollatorFactoryICU factory;
+    auto collator = factory.makeFromBSON(BSON("locale"
+                                              << "garbage"));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::BadValue);
+}
+
+TEST(CollatorFactoryICUTest, AllFieldsParseSuccessfully) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_OK(collator.getStatus());
+    ASSERT_EQ("en_US", collator.getValue()->getSpec().localeID);
+}
+
+TEST(CollatorFactoryICUTest, LongStrengthFieldParsesSuccessfully) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << (long long)1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_OK(collator.getStatus());
+    ASSERT_EQ("en_US", collator.getValue()->getSpec().localeID);
+}
+
+TEST(CollatorFactoryICUTest, DoubleStrengthFieldParsesSuccessfully) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1.0 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_OK(collator.getStatus());
+    ASSERT_EQ("en_US", collator.getValue()->getSpec().localeID);
+}
+
+TEST(CollatorFactoryICUTest, NonBooleanCaseSensitiveFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive"
+                                  << "garbage"
+                                  << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NonStringCaseOrderFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder" << 1 << "strength" << 1
+                                  << "numericCollation" << false << "ignoreAlternateCharacters"
+                                  << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NonNumberStrengthFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength"
+                                  << "garbage"
+                                  << "numericCollation" << false << "ignoreAlternateCharacters"
+                                  << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, TooLargeStrengthFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << (long long)2147483648 << "numericCollation"
+                                  << false << "ignoreAlternateCharacters" << true
+                                  << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, FractionalStrengthFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 0.5 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NegativeStrengthFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << -1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NonBoolNumericCollationFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1 << "numericCollation"
+                                  << "garbage"
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NonBoolIgnoreAlternateCharactersFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters"
+                                  << "garbage"
+                                  << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NonStringAlternateCharactersFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << 1 << "checkNormalization" << false << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NonBoolCheckNormalizationFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization"
+                                  << "garbage"
+                                  << "french" << true));
+    ASSERT_NOT_OK(collator.getStatus());
+    ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
+}
+
+TEST(CollatorFactoryICUTest, NonBoolFrenchFieldFailsToParse) {
+    CollatorFactoryICU factory;
+    auto collator =
+        factory.makeFromBSON(BSON("locale"
+                                  << "en_US"
+                                  << "caseSensitive" << true << "caseOrder"
+                                  << "off"
+                                  << "strength" << 1 << "numericCollation" << false
+                                  << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                                  << "all"
+                                  << "checkNormalization" << false << "french"
+                                  << "garbage"));
     ASSERT_NOT_OK(collator.getStatus());
     ASSERT_EQ(collator.getStatus(), ErrorCodes::FailedToParse);
 }

@@ -40,9 +40,23 @@ using namespace mongo;
 TEST(CollationSpecSerializerTest, ToBSONProducesCorrectSerializedObj) {
     CollationSpec collationSpec;
     collationSpec.localeID = "myLocale";
+    collationSpec.caseSensitive = true;
+    collationSpec.caseOrder = "off";
+    collationSpec.strength = 1;
+    collationSpec.numericCollation = false;
+    collationSpec.ignoreAlternateCharacters = true;
+    collationSpec.alternateCharacters = "all";
+    collationSpec.checkNormalization = false;
+    collationSpec.french = true;
 
     BSONObj expectedObj = BSON("locale"
-                               << "myLocale");
+                               << "myLocale"
+                               << "caseSensitive" << true << "caseOrder"
+                               << "off"
+                               << "strength" << 1 << "numericCollation" << false
+                               << "ignoreAlternateCharacters" << true << "alternateCharacters"
+                               << "all"
+                               << "checkNormalization" << false << "french" << true);
 
     ASSERT_EQ(expectedObj, CollationSpecSerializer::toBSON(collationSpec));
 }
