@@ -59,9 +59,10 @@ env.Library(
 )
 
 env.CppUnitTest(
-        target='btree_key_generator_test',
+        target='key_generator_test',
         source=[
             'btree_key_generator_test.cpp',
+            'hash_key_generator_test.cpp',
         ],
         LIBDEPS=[
             'key_generator',

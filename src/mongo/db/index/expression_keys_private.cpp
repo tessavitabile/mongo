@@ -334,7 +334,7 @@ void ExpressionKeysPrivate::getHashKeys(const BSONObj& obj,
     BSONObjBuilder bob;
     CollationIndexKey::collationAwareIndexKeyAppend(fieldVal, collator, &bob);
     auto fieldValObj = bob.obj();
-    fieldVal = obj.getField("");
+    fieldVal = fieldValObj.firstElement();
 
     uassert(16766,
             "Error: hashed indexes do not currently support array values",
