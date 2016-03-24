@@ -140,9 +140,11 @@ IndexCatalogEntry* IndexCatalog::_setupInMemoryStructures(OperationContext* txn,
         fassertFailedNoTrace(28782);
     }
 
+    // TODO: Replace nullptr with the appropriate CollatorInterface.
     unique_ptr<IndexCatalogEntry> entry(new IndexCatalogEntry(_collection->ns().ns(),
                                                               _collection->getCatalogEntry(),
                                                               descriptorCleanup.release(),
+                                                              nullptr,
                                                               _collection->infoCache()));
 
     entry->init(txn,

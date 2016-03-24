@@ -36,6 +36,7 @@
 
 namespace mongo {
 
+class CollatorInterface;
 struct TwoDIndexingParams;
 struct S2IndexingParams;
 
@@ -59,7 +60,8 @@ public:
     static void get2DKeys(const BSONObj& obj,
                           const TwoDIndexingParams& params,
                           BSONObjSet* keys,
-                          std::vector<BSONObj>* locs);
+                          std::vector<BSONObj>* locs,
+                          CollatorInterface* collator);
 
     //
     // FTS
@@ -79,7 +81,8 @@ public:
                             HashSeed seed,
                             int hashVersion,
                             bool isSparse,
-                            BSONObjSet* keys);
+                            BSONObjSet* keys,
+                            CollatorInterface* collator);
 
     /**
      * Hashing function used by both getHashKeys and the cursors we create.
@@ -123,7 +126,8 @@ public:
     static void getS2Keys(const BSONObj& obj,
                           const BSONObj& keyPattern,
                           const S2IndexingParams& params,
-                          BSONObjSet* keys);
+                          BSONObjSet* keys,
+                          CollatorInterface* collator);
 };
 
 }  // namespace mongo

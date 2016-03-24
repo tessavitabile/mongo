@@ -76,6 +76,8 @@ S2AccessMethod::S2AccessMethod(IndexCatalogEntry* btreeState, SortedDataInterfac
         warning() << "Sparse option ignored for index spec " << descriptor->keyPattern().toString()
                   << "\n";
     }
+
+    _collator = btreeState->collator();
 }
 
 // static
@@ -103,7 +105,7 @@ BSONObj S2AccessMethod::fixSpec(const BSONObj& specObj) {
 }
 
 void S2AccessMethod::getKeys(const BSONObj& obj, BSONObjSet* keys) const {
-    ExpressionKeysPrivate::getS2Keys(obj, _descriptor->keyPattern(), _params, keys);
+    ExpressionKeysPrivate::getS2Keys(obj, _descriptor->keyPattern(), _params, keys, _collator);
 }
 
 }  // namespace mongo
