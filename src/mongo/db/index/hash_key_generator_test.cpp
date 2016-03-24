@@ -79,7 +79,8 @@ TEST(HashKeyGeneratorTest, CollationAppliedBeforeHashing) {
 
     BSONObj backwardsObj = fromjson("{a: 'gnirts'}");
     BSONObjSet keysBackwardsNoCollation;
-    ExpressionKeysPrivate::getHashKeys(backwardsObj, hashedField, 0, 0, false, &keysBackwardsNoCollation, nullptr);
+    ExpressionKeysPrivate::getHashKeys(
+        backwardsObj, hashedField, 0, 0, false, &keysBackwardsNoCollation, nullptr);
 
     ASSERT(assertKeysetsEqual(keysCollation, keysBackwardsNoCollation));
 }
