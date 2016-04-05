@@ -32,6 +32,7 @@
 
 #include "mongo/db/index/expression_keys_private.h"
 
+#include "mongo/bson/bsonobjbuilder.h"
 #include "mongo/db/hasher.h"
 #include "mongo/db/json.h"
 #include "mongo/db/query/collation/collator_interface_mock.h"
@@ -72,17 +73,51 @@ bool assertKeysetsEqual(const BSONObjSet& expectedKeys, const BSONObjSet& actual
 
 TEST(HashKeyGeneratorTest, CollationAppliedBeforeHashing) {
     BSONObj obj = fromjson("{a: 'string'}");
-    std::string hashedField = "a";
-    BSONObjSet keysCollation;
+    BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getHashKeys(obj, hashedField, 0, 0, false, &keysCollation, &collator);
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, &collator);
 
     BSONObj backwardsObj = fromjson("{a: 'gnirts'}");
-    BSONObjSet keysBackwardsNoCollation;
-    ExpressionKeysPrivate::getHashKeys(
-        backwardsObj, hashedField, 0, 0, false, &keysBackwardsNoCollation, nullptr);
+    BSONObjSet expectedKeys;
+    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(backwardsObj.getFieldDotted("a"), 0)));
 
-    ASSERT(assertKeysetsEqual(keysCollation, keysBackwardsNoCollation));
+    ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
+}
+
+TEST(HashKeyGeneratorTest, CollationDoesNotAffectNonStringFields) {
+    BSONObj obj = fromjson("{a: 5}");
+    BSONObjSet actualKeys;
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, &collator);
+
+    BSONObjSet expectedKeys;
+    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(obj.getFieldDotted("a"), 0)));
+
+    ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
+}
+
+// TODO SERVER-23172: remove test
+TEST(HashKeyGeneratorTest, CollationDoesNotAffectStringsInEmbeddedDocuments) {
+    BSONObj obj = fromjson("{a: {b: 'string'}}");
+    BSONObjSet actualKeys;
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, &collator);
+
+    BSONObjSet expectedKeys;
+    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(obj.getFieldDotted("a"), 0)));
+
+    ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
+}
+
+TEST(HashKeyGeneratorTest, NoCollation) {
+    BSONObj obj = fromjson("{a: 'string'}");
+    BSONObjSet actualKeys;
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, nullptr);
+
+    BSONObjSet expectedKeys;
+    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(obj.getFieldDotted("a"), 0)));
+
+    ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
 
 }  // namespace

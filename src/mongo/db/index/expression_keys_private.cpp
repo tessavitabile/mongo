@@ -280,6 +280,8 @@ void ExpressionKeysPrivate::get2DKeys(const BSONObj& obj,
                     continue;
             }
 
+            // obj is only used to print debugging information, so we need not convert its strings
+            // to collation keys.
             params.geoHashConverter->hash(locObj, &obj).appendHashMin(&b, "");
 
             // Go through all the other index keys
