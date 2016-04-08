@@ -40,6 +40,7 @@
 #include "mongo/db/field_ref.h"
 #include "mongo/db/jsobj.h"
 #include "mongo/db/matcher/path.h"
+#include "mongo/db/query/collation/collator_interface.h"
 #include "mongo/stdx/memory.h"
 #include "mongo/util/mongoutils/str.h"
 
@@ -72,6 +73,15 @@ bool ComparisonMatchExpression::equivalent(const MatchExpression* other) const {
         return false;
     const ComparisonMatchExpression* realOther =
         static_cast<const ComparisonMatchExpression*>(other);
+
+    if ((_collator && !realOther->_collator) || (!_collator && realOther->_collator)) {
+        return false;
+    }
+    if (_collator && realOther->_collator) {
+        if (*_collator != *(realOther->_collator)) {
+            return false;
+        }
+    }
 
     return path() == realOther->path() && _rhs.valuesEqual(realOther->_rhs);
 }
@@ -143,7 +153,7 @@ bool ComparisonMatchExpression::matchesSingleElement(const BSONElement& e) const
         }
     }
 
-    int x = compareElementValues(e, _rhs);
+    int x = compareElementValues(e, _rhs, _collator);
 
     // log() << "\t\t" << x << endl;
 
@@ -607,8 +617,10 @@ Status InMatchExpression::init(StringData path) {
 }
 
 bool InMatchExpression::_matchesRealElement(const BSONElement& e) const {
-    if (_arrayEntries.contains(e))
-        return true;
+    for (BSONElement equality : _arrayEntries.equalities()) {
+        if (equality.woCompare(e, false, _collator) == 0)
+            return true;
+    }
 
     for (unsigned i = 0; i < _arrayEntries.numRegexes(); i++) {
         if (_arrayEntries.regex(i)->matchesSingleElement(e))
@@ -662,11 +674,21 @@ bool InMatchExpression::equivalent(const MatchExpression* other) const {
     if (matchType() != other->matchType())
         return false;
     const InMatchExpression* realOther = static_cast<const InMatchExpression*>(other);
+
+    if ((_collator && !realOther->_collator) || (!_collator && realOther->_collator)) {
+        return false;
+    }
+    if (_collator && realOther->_collator) {
+        if (*_collator != *(realOther->_collator)) {
+            return false;
+        }
+    }
+
     return path() == realOther->path() && _arrayEntries.equivalent(realOther->_arrayEntries);
 }
 
 std::unique_ptr<MatchExpression> InMatchExpression::shallowClone() const {
-    std::unique_ptr<InMatchExpression> next = stdx::make_unique<InMatchExpression>();
+    std::unique_ptr<InMatchExpression> next = stdx::make_unique<InMatchExpression>(_collator);
     copyTo(next.get());
     if (getTag()) {
         next->setTag(getTag()->clone());

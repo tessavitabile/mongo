@@ -44,7 +44,7 @@ TEST(ElemMatchObjectMatchExpression, MatchesElementSingle) {
     BSONObj baseOperand = BSON("b" << 5);
     BSONObj match = BSON("a" << BSON_ARRAY(BSON("b" << 5.0)));
     BSONObj notMatch = BSON("a" << BSON_ARRAY(BSON("b" << 6)));
-    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression(nullptr));
     ASSERT(eq->init("b", baseOperand["b"]).isOK());
     ElemMatchObjectMatchExpression op;
     ASSERT(op.init("a", eq.release()).isOK());
@@ -56,7 +56,7 @@ TEST(ElemMatchObjectMatchExpression, MatchesElementArray) {
     BSONObj baseOperand = BSON("1" << 5);
     BSONObj match = BSON("a" << BSON_ARRAY(BSON_ARRAY('s' << 5.0)));
     BSONObj notMatch = BSON("a" << BSON_ARRAY(BSON_ARRAY(5 << 6)));
-    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression(nullptr));
     ASSERT(eq->init("1", baseOperand["1"]).isOK());
     ElemMatchObjectMatchExpression op;
     ASSERT(op.init("a", eq.release()).isOK());
@@ -72,11 +72,11 @@ TEST(ElemMatchObjectMatchExpression, MatchesElementMultiple) {
     BSONObj notMatch2 = BSON("a" << BSON_ARRAY(BSON("b" << 6 << "c" << 7)));
     BSONObj notMatch3 = BSON("a" << BSON_ARRAY(BSON("b" << BSON_ARRAY(5 << 6))));
     BSONObj match = BSON("a" << BSON_ARRAY(BSON("b" << BSON_ARRAY(5 << 6) << "c" << 7)));
-    unique_ptr<ComparisonMatchExpression> eq1(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq1(new EqualityMatchExpression(nullptr));
     ASSERT(eq1->init("b", baseOperand1["b"]).isOK());
-    unique_ptr<ComparisonMatchExpression> eq2(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq2(new EqualityMatchExpression(nullptr));
     ASSERT(eq2->init("b", baseOperand2["b"]).isOK());
-    unique_ptr<ComparisonMatchExpression> eq3(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq3(new EqualityMatchExpression(nullptr));
     ASSERT(eq3->init("c", baseOperand3["c"]).isOK());
 
     unique_ptr<AndMatchExpression> andOp(new AndMatchExpression());
@@ -94,7 +94,7 @@ TEST(ElemMatchObjectMatchExpression, MatchesElementMultiple) {
 
 TEST(ElemMatchObjectMatchExpression, MatchesNonArray) {
     BSONObj baseOperand = BSON("b" << 5);
-    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression(nullptr));
     ASSERT(eq->init("b", baseOperand["b"]).isOK());
     ElemMatchObjectMatchExpression op;
     ASSERT(op.init("a", eq.release()).isOK());
@@ -107,7 +107,7 @@ TEST(ElemMatchObjectMatchExpression, MatchesNonArray) {
 
 TEST(ElemMatchObjectMatchExpression, MatchesArrayObject) {
     BSONObj baseOperand = BSON("b" << 5);
-    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression(nullptr));
     ASSERT(eq->init("b", baseOperand["b"]).isOK());
     ElemMatchObjectMatchExpression op;
     ASSERT(op.init("a", eq.release()).isOK());
@@ -119,7 +119,7 @@ TEST(ElemMatchObjectMatchExpression, MatchesArrayObject) {
 
 TEST(ElemMatchObjectMatchExpression, MatchesMultipleNamedValues) {
     BSONObj baseOperand = BSON("c" << 5);
-    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression(nullptr));
     ASSERT(eq->init("c", baseOperand["c"]).isOK());
     ElemMatchObjectMatchExpression op;
     ASSERT(op.init("a.b", eq.release()).isOK());
@@ -131,7 +131,7 @@ TEST(ElemMatchObjectMatchExpression, MatchesMultipleNamedValues) {
 
 TEST(ElemMatchObjectMatchExpression, ElemMatchKey) {
     BSONObj baseOperand = BSON("c" << 6);
-    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eq(new EqualityMatchExpression(nullptr));
     ASSERT(eq->init("c", baseOperand["c"]).isOK());
     ElemMatchObjectMatchExpression op;
     ASSERT(op.init("a.b", eq.release()).isOK());
@@ -171,7 +171,7 @@ TEST(ElemMatchValueMatchExpression, MatchesElementSingle) {
     BSONObj baseOperand = BSON("$gt" << 5);
     BSONObj match = BSON("a" << BSON_ARRAY(6));
     BSONObj notMatch = BSON("a" << BSON_ARRAY(4));
-    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression(nullptr));
     ASSERT(gt->init("", baseOperand["$gt"]).isOK());
     ElemMatchValueMatchExpression op;
     ASSERT(op.init("a", gt.release()).isOK());
@@ -185,9 +185,9 @@ TEST(ElemMatchValueMatchExpression, MatchesElementMultiple) {
     BSONObj notMatch1 = BSON("a" << BSON_ARRAY(0 << 1));
     BSONObj notMatch2 = BSON("a" << BSON_ARRAY(10 << 11));
     BSONObj match = BSON("a" << BSON_ARRAY(0 << 5 << 11));
-    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression(nullptr));
     ASSERT(gt->init("", baseOperand1["$gt"]).isOK());
-    unique_ptr<ComparisonMatchExpression> lt(new LTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> lt(new LTMatchExpression(nullptr));
     ASSERT(lt->init("", baseOperand2["$lt"]).isOK());
 
     ElemMatchValueMatchExpression op;
@@ -202,7 +202,7 @@ TEST(ElemMatchValueMatchExpression, MatchesElementMultiple) {
 
 TEST(ElemMatchValueMatchExpression, MatchesNonArray) {
     BSONObj baseOperand = BSON("$gt" << 5);
-    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression(nullptr));
     ASSERT(gt->init("", baseOperand["$gt"]).isOK());
     ElemMatchObjectMatchExpression op;
     ASSERT(op.init("a", gt.release()).isOK());
@@ -214,7 +214,7 @@ TEST(ElemMatchValueMatchExpression, MatchesNonArray) {
 
 TEST(ElemMatchValueMatchExpression, MatchesArrayScalar) {
     BSONObj baseOperand = BSON("$gt" << 5);
-    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression(nullptr));
     ASSERT(gt->init("", baseOperand["$gt"]).isOK());
     ElemMatchValueMatchExpression op;
     ASSERT(op.init("a", gt.release()).isOK());
@@ -225,7 +225,7 @@ TEST(ElemMatchValueMatchExpression, MatchesArrayScalar) {
 
 TEST(ElemMatchValueMatchExpression, MatchesMultipleNamedValues) {
     BSONObj baseOperand = BSON("$gt" << 5);
-    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression(nullptr));
     ASSERT(gt->init("", baseOperand["$gt"]).isOK());
     ElemMatchValueMatchExpression op;
     ASSERT(op.init("a.b", gt.release()).isOK());
@@ -237,7 +237,7 @@ TEST(ElemMatchValueMatchExpression, MatchesMultipleNamedValues) {
 
 TEST(ElemMatchValueMatchExpression, ElemMatchKey) {
     BSONObj baseOperand = BSON("$gt" << 6);
-    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt(new GTMatchExpression(nullptr));
     ASSERT(gt->init("", baseOperand["$gt"]).isOK());
     ElemMatchValueMatchExpression op;
     ASSERT(op.init("a.b", gt.release()).isOK());
@@ -274,11 +274,11 @@ TEST( ElemMatchValueMatchExpression, MatchesIndexKey ) {
 
 TEST(AndOfElemMatch, MatchesElement) {
     BSONObj baseOperanda1 = BSON("a" << 1);
-    unique_ptr<ComparisonMatchExpression> eqa1(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eqa1(new EqualityMatchExpression(nullptr));
     ASSERT(eqa1->init("a", baseOperanda1["a"]).isOK());
 
     BSONObj baseOperandb1 = BSON("b" << 1);
-    unique_ptr<ComparisonMatchExpression> eqb1(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eqb1(new EqualityMatchExpression(nullptr));
     ASSERT(eqb1->init("b", baseOperandb1["b"]).isOK());
 
     unique_ptr<AndMatchExpression> and1(new AndMatchExpression());
@@ -291,11 +291,11 @@ TEST(AndOfElemMatch, MatchesElement) {
     // elemMatch1 = { x : { $elemMatch : { a : 1, b : 1 } } }
 
     BSONObj baseOperanda2 = BSON("a" << 2);
-    unique_ptr<ComparisonMatchExpression> eqa2(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eqa2(new EqualityMatchExpression(nullptr));
     ASSERT(eqa2->init("a", baseOperanda2["a"]).isOK());
 
     BSONObj baseOperandb2 = BSON("b" << 2);
-    unique_ptr<ComparisonMatchExpression> eqb2(new EqualityMatchExpression());
+    unique_ptr<ComparisonMatchExpression> eqb2(new EqualityMatchExpression(nullptr));
     ASSERT(eqb2->init("b", baseOperandb2["b"]).isOK());
 
     unique_ptr<AndMatchExpression> and2(new AndMatchExpression());
@@ -331,11 +331,11 @@ TEST(AndOfElemMatch, MatchesElement) {
 
 TEST(AndOfElemMatch, Matches) {
     BSONObj baseOperandgt1 = BSON("$gt" << 1);
-    unique_ptr<ComparisonMatchExpression> gt1(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt1(new GTMatchExpression(nullptr));
     ASSERT(gt1->init("", baseOperandgt1["$gt"]).isOK());
 
     BSONObj baseOperandlt1 = BSON("$lt" << 10);
-    unique_ptr<ComparisonMatchExpression> lt1(new LTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> lt1(new LTMatchExpression(nullptr));
     ASSERT(lt1->init("", baseOperandlt1["$lt"]).isOK());
 
     unique_ptr<ElemMatchValueMatchExpression> elemMatch1(new ElemMatchValueMatchExpression());
@@ -345,11 +345,11 @@ TEST(AndOfElemMatch, Matches) {
     // elemMatch1 = { x : { $elemMatch : { $gt : 1 , $lt : 10 } } }
 
     BSONObj baseOperandgt2 = BSON("$gt" << 101);
-    unique_ptr<ComparisonMatchExpression> gt2(new GTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> gt2(new GTMatchExpression(nullptr));
     ASSERT(gt2->init("", baseOperandgt2["$gt"]).isOK());
 
     BSONObj baseOperandlt2 = BSON("$lt" << 110);
-    unique_ptr<ComparisonMatchExpression> lt2(new LTMatchExpression());
+    unique_ptr<ComparisonMatchExpression> lt2(new LTMatchExpression(nullptr));
     ASSERT(lt2->init("", baseOperandlt2["$lt"]).isOK());
 
     unique_ptr<ElemMatchValueMatchExpression> elemMatch2(new ElemMatchValueMatchExpression());

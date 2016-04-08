@@ -35,6 +35,7 @@
 #include "mongo/db/matcher/expression_parser.h"
 #include "mongo/db/matcher/expression.h"
 #include "mongo/db/matcher/expression_leaf.h"
+#include "mongo/db/query/collation/collator_interface_mock.h"
 
 namespace mongo {
 
@@ -45,7 +46,7 @@ TEST(EqOp, MatchesElement) {
     BSONObj match = BSON("a" << 5.0);
     BSONObj notMatch = BSON("a" << 6);
 
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("", operand["a"]);
     ASSERT(eq.matchesSingleElement(match.firstElement()));
     ASSERT(!eq.matchesSingleElement(notMatch.firstElement()));
@@ -55,13 +56,13 @@ TEST(EqOp, MatchesElement) {
 
 TEST(EqOp, InvalidEooOperand) {
     BSONObj operand;
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     ASSERT(!eq.init("", operand.firstElement()).isOK());
 }
 
 TEST(EqOp, MatchesScalar) {
     BSONObj operand = BSON("a" << 5);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a", operand["a"]);
     ASSERT(eq.matchesBSON(BSON("a" << 5.0), NULL));
     ASSERT(!eq.matchesBSON(BSON("a" << 4), NULL));
@@ -69,7 +70,7 @@ TEST(EqOp, MatchesScalar) {
 
 TEST(EqOp, MatchesArrayValue) {
     BSONObj operand = BSON("a" << 5);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a", operand["a"]);
     ASSERT(eq.matchesBSON(BSON("a" << BSON_ARRAY(5.0 << 6)), NULL));
     ASSERT(!eq.matchesBSON(BSON("a" << BSON_ARRAY(6 << 7)), NULL));
@@ -77,7 +78,7 @@ TEST(EqOp, MatchesArrayValue) {
 
 TEST(EqOp, MatchesReferencedObjectValue) {
     BSONObj operand = BSON("a.b" << 5);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a.b", operand["a.b"]);
     ASSERT(eq.matchesBSON(BSON("a" << BSON("b" << 5)), NULL));
     ASSERT(eq.matchesBSON(BSON("a" << BSON("b" << BSON_ARRAY(5))), NULL));
@@ -86,7 +87,7 @@ TEST(EqOp, MatchesReferencedObjectValue) {
 
 TEST(EqOp, MatchesReferencedArrayValue) {
     BSONObj operand = BSON("a.0" << 5);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a.0", operand["a.0"]);
     ASSERT(eq.matchesBSON(BSON("a" << BSON_ARRAY(5)), NULL));
     ASSERT(!eq.matchesBSON(BSON("a" << BSON_ARRAY(BSON_ARRAY(5))), NULL));
@@ -94,7 +95,7 @@ TEST(EqOp, MatchesReferencedArrayValue) {
 
 TEST(EqOp, MatchesNull) {
     BSONObj operand = BSON("a" << BSONNULL);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a", operand["a"]);
     ASSERT(eq.matchesBSON(BSONObj(), NULL));
     ASSERT(eq.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -107,7 +108,7 @@ TEST(EqOp, MatchesNull) {
 // not necessarily how it should work ideally.
 TEST(EqOp, MatchesNestedNull) {
     BSONObj operand = BSON("a.b" << BSONNULL);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a.b", operand["a.b"]);
     // null matches any empty object that is on a subpath of a.b
     ASSERT(eq.matchesBSON(BSONObj(), NULL));
@@ -127,7 +128,7 @@ TEST(EqOp, MatchesNestedNull) {
 
 TEST(EqOp, MatchesMinKey) {
     BSONObj operand = BSON("a" << MinKey);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a", operand["a"]);
     ASSERT(eq.matchesBSON(BSON("a" << MinKey), NULL));
     ASSERT(!eq.matchesBSON(BSON("a" << MaxKey), NULL));
@@ -137,7 +138,7 @@ TEST(EqOp, MatchesMinKey) {
 
 TEST(EqOp, MatchesMaxKey) {
     BSONObj operand = BSON("a" << MaxKey);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     ASSERT(eq.init("a", operand["a"]).isOK());
     ASSERT(eq.matchesBSON(BSON("a" << MaxKey), NULL));
     ASSERT(!eq.matchesBSON(BSON("a" << MinKey), NULL));
@@ -146,7 +147,7 @@ TEST(EqOp, MatchesMaxKey) {
 
 TEST(EqOp, MatchesFullArray) {
     BSONObj operand = BSON("a" << BSON_ARRAY(1 << 2));
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     ASSERT(eq.init("a", operand["a"]).isOK());
     ASSERT(eq.matchesBSON(BSON("a" << BSON_ARRAY(1 << 2)), NULL));
     ASSERT(!eq.matchesBSON(BSON("a" << BSON_ARRAY(1 << 2 << 3)), NULL));
@@ -156,7 +157,7 @@ TEST(EqOp, MatchesFullArray) {
 
 TEST(EqOp, MatchesThroughNestedArray) {
     BSONObj operand = BSON("a.b.c.d" << 3);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     eq.init("a.b.c.d", operand["a.b.c.d"]);
     BSONObj obj = fromjson("{a:{b:[{c:[{d:1},{d:2}]},{c:[{d:3}]}]}}");
     ASSERT(eq.matchesBSON(obj, NULL));
@@ -164,7 +165,7 @@ TEST(EqOp, MatchesThroughNestedArray) {
 
 TEST(EqOp, ElemMatchKey) {
     BSONObj operand = BSON("a" << 5);
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     ASSERT(eq.init("a", operand["a"]).isOK());
     MatchDetails details;
     details.requestElemMatchKey();
@@ -183,7 +184,7 @@ TEST(EqOp, ElemMatchKey) {
 TEST(EqOp, ElemMatchKeyWithImplicitAndExplicitTraversal) {
     BSONObj operand = BSON("a.0.b" << 3);
     BSONElement operandFirstElt = operand.firstElement();
-    EqualityMatchExpression eq;
+    EqualityMatchExpression eq(nullptr);
     ASSERT(eq.init(operandFirstElt.fieldName(), operandFirstElt).isOK());
     MatchDetails details;
     details.requestElemMatchKey();
@@ -194,9 +195,9 @@ TEST(EqOp, ElemMatchKeyWithImplicitAndExplicitTraversal) {
 }
 
 TEST(EqOp, Equality1) {
-    EqualityMatchExpression eq1;
-    EqualityMatchExpression eq2;
-    EqualityMatchExpression eq3;
+    EqualityMatchExpression eq1(nullptr);
+    EqualityMatchExpression eq2(nullptr);
+    EqualityMatchExpression eq3(nullptr);
 
     BSONObj operand = BSON("a" << 5 << "b" << 5 << "c" << 4);
 
@@ -207,6 +208,57 @@ TEST(EqOp, Equality1) {
     ASSERT(eq1.equivalent(&eq1));
     ASSERT(eq1.equivalent(&eq2));
     ASSERT(!eq1.equivalent(&eq3));
+}
+
+TEST(EqOp, EqualityMatchExpressionsWithNullCollatorsAreEqual) {
+    EqualityMatchExpression eq1(nullptr);
+    EqualityMatchExpression eq2(nullptr);
+    ASSERT(eq1.equivalent(&eq2));
+}
+
+TEST(EqOp, EqualityMatchExpressionsWhereOneHasANullCollatorAreUnequal) {
+    EqualityMatchExpression eq1(nullptr);
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    EqualityMatchExpression eq2(&collator);
+    ASSERT(!eq1.equivalent(&eq2));
+    ASSERT(!eq2.equivalent(&eq1));
+}
+
+TEST(EqOp, EqualityMatchExpressionsWithUnequalCollatorsAreUnequal) {
+    CollatorInterfaceMock collator1(CollatorInterfaceMock::MockType::kReverseString);
+    EqualityMatchExpression eq1(&collator1);
+    CollatorInterfaceMock collator2(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    EqualityMatchExpression eq2(&collator2);
+    ASSERT(!eq1.equivalent(&eq2));
+}
+
+TEST(EqOp, EqualityMatchExpressionsWithEqualCollatorsAreEqual) {
+    CollatorInterfaceMock collator1(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    EqualityMatchExpression eq1(&collator1);
+    CollatorInterfaceMock collator2(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    EqualityMatchExpression eq2(&collator2);
+    ASSERT(eq1.equivalent(&eq2));
+}
+
+TEST(EqOp, StringMatchingWithNullCollatorUsesBinaryComparison) {
+    BSONObj operand = BSON("a"
+                           << "string");
+    EqualityMatchExpression eq(nullptr);
+    ASSERT(eq.init("a", operand["a"]).isOK());
+    ASSERT(!eq.matchesBSON(BSON("a"
+                                << "string2"),
+                           NULL));
+}
+
+TEST(EqOp, StringMatchingRespectsCollation) {
+    BSONObj operand = BSON("a"
+                           << "string");
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    EqualityMatchExpression eq(&collator);
+    ASSERT(eq.init("a", operand["a"]).isOK());
+    ASSERT(eq.matchesBSON(BSON("a"
+                               << "string2"),
+                          NULL));
 }
 
 /**
@@ -266,7 +318,7 @@ TEST(LtOp, MatchesElement) {
     BSONObj notMatchEqual = BSON("a" << 5);
     BSONObj notMatchWrongType = BSON("a"
                                      << "foo");
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("", operand["$lt"]).isOK());
     ASSERT(lt.matchesSingleElement(match.firstElement()));
     ASSERT(!lt.matchesSingleElement(notMatch.firstElement()));
@@ -276,13 +328,13 @@ TEST(LtOp, MatchesElement) {
 
 TEST(LtOp, InvalidEooOperand) {
     BSONObj operand;
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(!lt.init("", operand.firstElement()).isOK());
 }
 
 TEST(LtOp, MatchesScalar) {
     BSONObj operand = BSON("$lt" << 5);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a", operand["$lt"]).isOK());
     ASSERT(lt.matchesBSON(BSON("a" << 4.5), NULL));
     ASSERT(!lt.matchesBSON(BSON("a" << 6), NULL));
@@ -290,7 +342,7 @@ TEST(LtOp, MatchesScalar) {
 
 TEST(LtOp, MatchesScalarEmptyKey) {
     BSONObj operand = BSON("$lt" << 5);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("", operand["$lt"]).isOK());
     ASSERT(lt.matchesBSON(BSON("" << 4.5), NULL));
     ASSERT(!lt.matchesBSON(BSON("" << 6), NULL));
@@ -298,7 +350,7 @@ TEST(LtOp, MatchesScalarEmptyKey) {
 
 TEST(LtOp, MatchesArrayValue) {
     BSONObj operand = BSON("$lt" << 5);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a", operand["$lt"]).isOK());
     ASSERT(lt.matchesBSON(BSON("a" << BSON_ARRAY(6 << 4.5)), NULL));
     ASSERT(!lt.matchesBSON(BSON("a" << BSON_ARRAY(6 << 7)), NULL));
@@ -306,7 +358,7 @@ TEST(LtOp, MatchesArrayValue) {
 
 TEST(LtOp, MatchesWholeArray) {
     BSONObj operand = BSON("$lt" << BSON_ARRAY(5));
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a", operand["$lt"]).isOK());
     ASSERT(lt.matchesBSON(BSON("a" << BSON_ARRAY(4)), NULL));
     ASSERT(!lt.matchesBSON(BSON("a" << BSON_ARRAY(5)), NULL));
@@ -319,7 +371,7 @@ TEST(LtOp, MatchesWholeArray) {
 
 TEST(LtOp, MatchesNull) {
     BSONObj operand = BSON("$lt" << BSONNULL);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a", operand["$lt"]).isOK());
     ASSERT(!lt.matchesBSON(BSONObj(), NULL));
     ASSERT(!lt.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -330,7 +382,7 @@ TEST(LtOp, MatchesNull) {
 
 TEST(LtOp, MatchesDotNotationNull) {
     BSONObj operand = BSON("$lt" << BSONNULL);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a.b", operand["$lt"]).isOK());
     ASSERT(!lt.matchesBSON(BSONObj(), NULL));
     ASSERT(!lt.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -344,7 +396,7 @@ TEST(LtOp, MatchesDotNotationNull) {
 
 TEST(LtOp, MatchesMinKey) {
     BSONObj operand = BSON("a" << MinKey);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a", operand["a"]).isOK());
     ASSERT(!lt.matchesBSON(BSON("a" << MinKey), NULL));
     ASSERT(!lt.matchesBSON(BSON("a" << MaxKey), NULL));
@@ -353,7 +405,7 @@ TEST(LtOp, MatchesMinKey) {
 
 TEST(LtOp, MatchesMaxKey) {
     BSONObj operand = BSON("a" << MaxKey);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a", operand["a"]).isOK());
     ASSERT(!lt.matchesBSON(BSON("a" << MaxKey), NULL));
     ASSERT(lt.matchesBSON(BSON("a" << MinKey), NULL));
@@ -362,7 +414,7 @@ TEST(LtOp, MatchesMaxKey) {
 
 TEST(LtOp, ElemMatchKey) {
     BSONObj operand = BSON("$lt" << 5);
-    LTMatchExpression lt;
+    LTMatchExpression lt(nullptr);
     ASSERT(lt.init("a", operand["$lt"]).isOK());
     MatchDetails details;
     details.requestElemMatchKey();
@@ -373,6 +425,27 @@ TEST(LtOp, ElemMatchKey) {
     ASSERT(lt.matchesBSON(BSON("a" << BSON_ARRAY(6 << 2 << 5)), &details));
     ASSERT(details.hasElemMatchKey());
     ASSERT_EQUALS("1", details.elemMatchKey());
+}
+
+TEST(LtOp, StringMatchingWithNullCollatorUsesBinaryComparison) {
+    BSONObj operand = BSON("$lt"
+                           << "abc");
+    LTMatchExpression lt(nullptr);
+    ASSERT(lt.init("a", operand["$lt"]).isOK());
+    ASSERT(!lt.matchesBSON(BSON("a"
+                                << "cba"),
+                           NULL));
+}
+
+TEST(LtOp, StringMatchingRespectsCollation) {
+    BSONObj operand = BSON("$lt"
+                           << "abc");
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    LTMatchExpression lt(&collator);
+    ASSERT(lt.init("a", operand["$lt"]).isOK());
+    ASSERT(lt.matchesBSON(BSON("a"
+                               << "cba"),
+                          NULL));
 }
 
 /**
@@ -432,7 +505,7 @@ TEST(LteOp, MatchesElement) {
     BSONObj notMatch = BSON("a" << 6);
     BSONObj notMatchWrongType = BSON("a"
                                      << "foo");
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("", operand["$lte"]).isOK());
     ASSERT(lte.matchesSingleElement(match.firstElement()));
     ASSERT(lte.matchesSingleElement(equalMatch.firstElement()));
@@ -442,13 +515,13 @@ TEST(LteOp, MatchesElement) {
 
 TEST(LteOp, InvalidEooOperand) {
     BSONObj operand;
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(!lte.init("", operand.firstElement()).isOK());
 }
 
 TEST(LteOp, MatchesScalar) {
     BSONObj operand = BSON("$lte" << 5);
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a", operand["$lte"]).isOK());
     ASSERT(lte.matchesBSON(BSON("a" << 4.5), NULL));
     ASSERT(!lte.matchesBSON(BSON("a" << 6), NULL));
@@ -456,7 +529,7 @@ TEST(LteOp, MatchesScalar) {
 
 TEST(LteOp, MatchesArrayValue) {
     BSONObj operand = BSON("$lte" << 5);
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a", operand["$lte"]).isOK());
     ASSERT(lte.matchesBSON(BSON("a" << BSON_ARRAY(6 << 4.5)), NULL));
     ASSERT(!lte.matchesBSON(BSON("a" << BSON_ARRAY(6 << 7)), NULL));
@@ -464,7 +537,7 @@ TEST(LteOp, MatchesArrayValue) {
 
 TEST(LteOp, MatchesWholeArray) {
     BSONObj operand = BSON("$lte" << BSON_ARRAY(5));
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a", operand["$lte"]).isOK());
     ASSERT(lte.matchesBSON(BSON("a" << BSON_ARRAY(4)), NULL));
     ASSERT(lte.matchesBSON(BSON("a" << BSON_ARRAY(5)), NULL));
@@ -477,7 +550,7 @@ TEST(LteOp, MatchesWholeArray) {
 
 TEST(LteOp, MatchesNull) {
     BSONObj operand = BSON("$lte" << BSONNULL);
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a", operand["$lte"]).isOK());
     ASSERT(lte.matchesBSON(BSONObj(), NULL));
     ASSERT(lte.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -488,7 +561,7 @@ TEST(LteOp, MatchesNull) {
 
 TEST(LteOp, MatchesDotNotationNull) {
     BSONObj operand = BSON("$lte" << BSONNULL);
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a.b", operand["$lte"]).isOK());
     ASSERT(lte.matchesBSON(BSONObj(), NULL));
     ASSERT(lte.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -502,7 +575,7 @@ TEST(LteOp, MatchesDotNotationNull) {
 
 TEST(LteOp, MatchesMinKey) {
     BSONObj operand = BSON("a" << MinKey);
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a", operand["a"]).isOK());
     ASSERT(lte.matchesBSON(BSON("a" << MinKey), NULL));
     ASSERT(!lte.matchesBSON(BSON("a" << MaxKey), NULL));
@@ -511,7 +584,7 @@ TEST(LteOp, MatchesMinKey) {
 
 TEST(LteOp, MatchesMaxKey) {
     BSONObj operand = BSON("a" << MaxKey);
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a", operand["a"]).isOK());
     ASSERT(lte.matchesBSON(BSON("a" << MaxKey), NULL));
     ASSERT(lte.matchesBSON(BSON("a" << MinKey), NULL));
@@ -521,7 +594,7 @@ TEST(LteOp, MatchesMaxKey) {
 
 TEST(LteOp, ElemMatchKey) {
     BSONObj operand = BSON("$lte" << 5);
-    LTEMatchExpression lte;
+    LTEMatchExpression lte(nullptr);
     ASSERT(lte.init("a", operand["$lte"]).isOK());
     MatchDetails details;
     details.requestElemMatchKey();
@@ -532,6 +605,27 @@ TEST(LteOp, ElemMatchKey) {
     ASSERT(lte.matchesBSON(BSON("a" << BSON_ARRAY(6 << 2 << 5)), &details));
     ASSERT(details.hasElemMatchKey());
     ASSERT_EQUALS("1", details.elemMatchKey());
+}
+
+TEST(LteOp, StringMatchingWithNullCollatorUsesBinaryComparison) {
+    BSONObj operand = BSON("$lte"
+                           << "abc");
+    LTEMatchExpression lte(nullptr);
+    ASSERT(lte.init("a", operand["$lte"]).isOK());
+    ASSERT(!lte.matchesBSON(BSON("a"
+                                 << "cba"),
+                            NULL));
+}
+
+TEST(LteOp, StringMatchingRespectsCollation) {
+    BSONObj operand = BSON("$lte"
+                           << "abc");
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    LTEMatchExpression lte(&collator);
+    ASSERT(lte.init("a", operand["$lte"]).isOK());
+    ASSERT(lte.matchesBSON(BSON("a"
+                                << "cba"),
+                           NULL));
 }
 
 /**
@@ -601,13 +695,13 @@ TEST(LteOp, ElemMatchKey) {
 
 TEST(GtOp, InvalidEooOperand) {
     BSONObj operand;
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(!gt.init("", operand.firstElement()).isOK());
 }
 
 TEST(GtOp, MatchesScalar) {
     BSONObj operand = BSON("$gt" << 5);
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a", operand["$gt"]).isOK());
     ASSERT(gt.matchesBSON(BSON("a" << 5.5), NULL));
     ASSERT(!gt.matchesBSON(BSON("a" << 4), NULL));
@@ -615,7 +709,7 @@ TEST(GtOp, MatchesScalar) {
 
 TEST(GtOp, MatchesArrayValue) {
     BSONObj operand = BSON("$gt" << 5);
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a", operand["$gt"]).isOK());
     ASSERT(gt.matchesBSON(BSON("a" << BSON_ARRAY(3 << 5.5)), NULL));
     ASSERT(!gt.matchesBSON(BSON("a" << BSON_ARRAY(2 << 4)), NULL));
@@ -623,7 +717,7 @@ TEST(GtOp, MatchesArrayValue) {
 
 TEST(GtOp, MatchesWholeArray) {
     BSONObj operand = BSON("$gt" << BSON_ARRAY(5));
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a", operand["$gt"]).isOK());
     ASSERT(!gt.matchesBSON(BSON("a" << BSON_ARRAY(4)), NULL));
     ASSERT(!gt.matchesBSON(BSON("a" << BSON_ARRAY(5)), NULL));
@@ -638,7 +732,7 @@ TEST(GtOp, MatchesWholeArray) {
 
 TEST(GtOp, MatchesNull) {
     BSONObj operand = BSON("$gt" << BSONNULL);
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a", operand["$gt"]).isOK());
     ASSERT(!gt.matchesBSON(BSONObj(), NULL));
     ASSERT(!gt.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -649,7 +743,7 @@ TEST(GtOp, MatchesNull) {
 
 TEST(GtOp, MatchesDotNotationNull) {
     BSONObj operand = BSON("$gt" << BSONNULL);
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a.b", operand["$gt"]).isOK());
     ASSERT(!gt.matchesBSON(BSONObj(), NULL));
     ASSERT(!gt.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -663,7 +757,7 @@ TEST(GtOp, MatchesDotNotationNull) {
 
 TEST(GtOp, MatchesMinKey) {
     BSONObj operand = BSON("a" << MinKey);
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a", operand["a"]).isOK());
     ASSERT(!gt.matchesBSON(BSON("a" << MinKey), NULL));
     ASSERT(gt.matchesBSON(BSON("a" << MaxKey), NULL));
@@ -672,7 +766,7 @@ TEST(GtOp, MatchesMinKey) {
 
 TEST(GtOp, MatchesMaxKey) {
     BSONObj operand = BSON("a" << MaxKey);
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a", operand["a"]).isOK());
     ASSERT(!gt.matchesBSON(BSON("a" << MaxKey), NULL));
     ASSERT(!gt.matchesBSON(BSON("a" << MinKey), NULL));
@@ -681,7 +775,7 @@ TEST(GtOp, MatchesMaxKey) {
 
 TEST(GtOp, ElemMatchKey) {
     BSONObj operand = BSON("$gt" << 5);
-    GTMatchExpression gt;
+    GTMatchExpression gt(nullptr);
     ASSERT(gt.init("a", operand["$gt"]).isOK());
     MatchDetails details;
     details.requestElemMatchKey();
@@ -692,6 +786,27 @@ TEST(GtOp, ElemMatchKey) {
     ASSERT(gt.matchesBSON(BSON("a" << BSON_ARRAY(2 << 6 << 5)), &details));
     ASSERT(details.hasElemMatchKey());
     ASSERT_EQUALS("1", details.elemMatchKey());
+}
+
+TEST(GtOp, StringMatchingWithNullCollatorUsesBinaryComparison) {
+    BSONObj operand = BSON("$gt"
+                           << "abc");
+    GTMatchExpression gt(nullptr);
+    ASSERT(gt.init("a", operand["$gt"]).isOK());
+    ASSERT(gt.matchesBSON(BSON("a"
+                               << "cba"),
+                          NULL));
+}
+
+TEST(GtOp, StringMatchingRespectsCollation) {
+    BSONObj operand = BSON("$gt"
+                           << "abc");
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    GTMatchExpression gt(&collator);
+    ASSERT(gt.init("a", operand["$gt"]).isOK());
+    ASSERT(!gt.matchesBSON(BSON("a"
+                                << "cba"),
+                           NULL));
 }
 
 /**
@@ -752,7 +867,7 @@ TEST(ComparisonMatchExpression, MatchesElement) {
     BSONObj notMatch = BSON("a" << 4);
     BSONObj notMatchWrongType = BSON("a"
                                      << "foo");
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("", operand["$gte"]).isOK());
     ASSERT(gte.matchesSingleElement(match.firstElement()));
     ASSERT(gte.matchesSingleElement(equalMatch.firstElement()));
@@ -762,13 +877,13 @@ TEST(ComparisonMatchExpression, MatchesElement) {
 
 TEST(ComparisonMatchExpression, InvalidEooOperand) {
     BSONObj operand;
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(!gte.init("", operand.firstElement()).isOK());
 }
 
 TEST(ComparisonMatchExpression, MatchesScalar) {
     BSONObj operand = BSON("$gte" << 5);
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a", operand["$gte"]).isOK());
     ASSERT(gte.matchesBSON(BSON("a" << 5.5), NULL));
     ASSERT(!gte.matchesBSON(BSON("a" << 4), NULL));
@@ -776,7 +891,7 @@ TEST(ComparisonMatchExpression, MatchesScalar) {
 
 TEST(ComparisonMatchExpression, MatchesArrayValue) {
     BSONObj operand = BSON("$gte" << 5);
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a", operand["$gte"]).isOK());
     ASSERT(gte.matchesBSON(BSON("a" << BSON_ARRAY(4 << 5.5)), NULL));
     ASSERT(!gte.matchesBSON(BSON("a" << BSON_ARRAY(1 << 2)), NULL));
@@ -784,7 +899,7 @@ TEST(ComparisonMatchExpression, MatchesArrayValue) {
 
 TEST(ComparisonMatchExpression, MatchesWholeArray) {
     BSONObj operand = BSON("$gte" << BSON_ARRAY(5));
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a", operand["$gte"]).isOK());
     ASSERT(!gte.matchesBSON(BSON("a" << BSON_ARRAY(4)), NULL));
     ASSERT(gte.matchesBSON(BSON("a" << BSON_ARRAY(5)), NULL));
@@ -798,7 +913,7 @@ TEST(ComparisonMatchExpression, MatchesWholeArray) {
 
 TEST(ComparisonMatchExpression, MatchesNull) {
     BSONObj operand = BSON("$gte" << BSONNULL);
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a", operand["$gte"]).isOK());
     ASSERT(gte.matchesBSON(BSONObj(), NULL));
     ASSERT(gte.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -809,7 +924,7 @@ TEST(ComparisonMatchExpression, MatchesNull) {
 
 TEST(ComparisonMatchExpression, MatchesDotNotationNull) {
     BSONObj operand = BSON("$gte" << BSONNULL);
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a.b", operand["$gte"]).isOK());
     ASSERT(gte.matchesBSON(BSONObj(), NULL));
     ASSERT(gte.matchesBSON(BSON("a" << BSONNULL), NULL));
@@ -823,7 +938,7 @@ TEST(ComparisonMatchExpression, MatchesDotNotationNull) {
 
 TEST(ComparisonMatchExpression, MatchesMinKey) {
     BSONObj operand = BSON("a" << MinKey);
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a", operand["a"]).isOK());
     ASSERT(gte.matchesBSON(BSON("a" << MinKey), NULL));
     ASSERT(gte.matchesBSON(BSON("a" << MaxKey), NULL));
@@ -832,7 +947,7 @@ TEST(ComparisonMatchExpression, MatchesMinKey) {
 
 TEST(ComparisonMatchExpression, MatchesMaxKey) {
     BSONObj operand = BSON("a" << MaxKey);
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a", operand["a"]).isOK());
     ASSERT(gte.matchesBSON(BSON("a" << MaxKey), NULL));
     ASSERT(!gte.matchesBSON(BSON("a" << MinKey), NULL));
@@ -841,7 +956,7 @@ TEST(ComparisonMatchExpression, MatchesMaxKey) {
 
 TEST(ComparisonMatchExpression, ElemMatchKey) {
     BSONObj operand = BSON("$gte" << 5);
-    GTEMatchExpression gte;
+    GTEMatchExpression gte(nullptr);
     ASSERT(gte.init("a", operand["$gte"]).isOK());
     MatchDetails details;
     details.requestElemMatchKey();
@@ -852,6 +967,27 @@ TEST(ComparisonMatchExpression, ElemMatchKey) {
     ASSERT(gte.matchesBSON(BSON("a" << BSON_ARRAY(2 << 6 << 5)), &details));
     ASSERT(details.hasElemMatchKey());
     ASSERT_EQUALS("1", details.elemMatchKey());
+}
+
+TEST(ComparisonMatchExpression, StringMatchingWithNullCollatorUsesBinaryComparison) {
+    BSONObj operand = BSON("$gte"
+                           << "abc");
+    GTEMatchExpression gte(nullptr);
+    ASSERT(gte.init("a", operand["$gte"]).isOK());
+    ASSERT(gte.matchesBSON(BSON("a"
+                                << "cba"),
+                           NULL));
+}
+
+TEST(ComparisonMatchExpression, StringMatchingRespectsCollation) {
+    BSONObj operand = BSON("$gte"
+                           << "abc");
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    GTEMatchExpression gte(&collator);
+    ASSERT(gte.init("a", operand["$gte"]).isOK());
+    ASSERT(!gte.matchesBSON(BSON("a"
+                                 << "cba"),
+                            NULL));
 }
 
 /**
@@ -1501,14 +1637,14 @@ TEST(InMatchExpression, MatchesElementSingle) {
     BSONArray operand = BSON_ARRAY(1);
     BSONObj match = BSON("a" << 1);
     BSONObj notMatch = BSON("a" << 2);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.getArrayFilterEntries()->addEquality(operand.firstElement());
     ASSERT(in.matchesSingleElement(match["a"]));
     ASSERT(!in.matchesSingleElement(notMatch["a"]));
 }
 
 TEST(InMatchExpression, MatchesEmpty) {
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
 
     BSONObj notMatch = BSON("a" << 2);
@@ -1519,7 +1655,7 @@ TEST(InMatchExpression, MatchesEmpty) {
 
 TEST(InMatchExpression, MatchesElementMultiple) {
     BSONObj operand = BSON_ARRAY(1 << "r" << true << 1);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.getArrayFilterEntries()->addEquality(operand[0]);
     in.getArrayFilterEntries()->addEquality(operand[1]);
     in.getArrayFilterEntries()->addEquality(operand[2]);
@@ -1539,7 +1675,7 @@ TEST(InMatchExpression, MatchesElementMultiple) {
 
 TEST(InMatchExpression, MatchesScalar) {
     BSONObj operand = BSON_ARRAY(5);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     in.getArrayFilterEntries()->addEquality(operand.firstElement());
 
@@ -1549,7 +1685,7 @@ TEST(InMatchExpression, MatchesScalar) {
 
 TEST(InMatchExpression, MatchesArrayValue) {
     BSONObj operand = BSON_ARRAY(5);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     in.getArrayFilterEntries()->addEquality(operand.firstElement());
 
@@ -1561,7 +1697,7 @@ TEST(InMatchExpression, MatchesArrayValue) {
 TEST(InMatchExpression, MatchesNull) {
     BSONObj operand = BSON_ARRAY(BSONNULL);
 
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     in.getArrayFilterEntries()->addEquality(operand.firstElement());
 
@@ -1575,7 +1711,7 @@ TEST(InMatchExpression, MatchesNull) {
 TEST(InMatchExpression, MatchesUndefined) {
     BSONObj operand = BSON_ARRAY(BSONUndefined);
 
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     Status s = in.getArrayFilterEntries()->addEquality(operand.firstElement());
     ASSERT_NOT_OK(s);
@@ -1583,7 +1719,7 @@ TEST(InMatchExpression, MatchesUndefined) {
 
 TEST(InMatchExpression, MatchesMinKey) {
     BSONObj operand = BSON_ARRAY(MinKey);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     in.getArrayFilterEntries()->addEquality(operand.firstElement());
 
@@ -1594,7 +1730,7 @@ TEST(InMatchExpression, MatchesMinKey) {
 
 TEST(InMatchExpression, MatchesMaxKey) {
     BSONObj operand = BSON_ARRAY(MaxKey);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     in.getArrayFilterEntries()->addEquality(operand.firstElement());
 
@@ -1605,7 +1741,7 @@ TEST(InMatchExpression, MatchesMaxKey) {
 
 TEST(InMatchExpression, MatchesFullArray) {
     BSONObj operand = BSON_ARRAY(BSON_ARRAY(1 << 2) << 4 << 5);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     in.getArrayFilterEntries()->addEquality(operand[0]);
     in.getArrayFilterEntries()->addEquality(operand[1]);
@@ -1619,7 +1755,7 @@ TEST(InMatchExpression, MatchesFullArray) {
 
 TEST(InMatchExpression, ElemMatchKey) {
     BSONObj operand = BSON_ARRAY(5 << 2);
-    InMatchExpression in;
+    InMatchExpression in(nullptr);
     in.init("a");
     in.getArrayFilterEntries()->addEquality(operand[0]);
     in.getArrayFilterEntries()->addEquality(operand[1]);
@@ -1633,6 +1769,55 @@ TEST(InMatchExpression, ElemMatchKey) {
     ASSERT(in.matchesBSON(BSON("a" << BSON_ARRAY(1 << 2 << 5)), &details));
     ASSERT(details.hasElemMatchKey());
     ASSERT_EQUALS("1", details.elemMatchKey());
+}
+
+TEST(InMatchExpression, InMatchExpressionsWithNullCollatorsAreEqual) {
+    InMatchExpression eq1(nullptr);
+    InMatchExpression eq2(nullptr);
+    ASSERT(eq1.equivalent(&eq2));
+}
+
+TEST(InMatchExpression, InMatchExpressionsWhereOneHasANullCollatorAreUnequal) {
+    InMatchExpression eq1(nullptr);
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    InMatchExpression eq2(&collator);
+    ASSERT(!eq1.equivalent(&eq2));
+    ASSERT(!eq2.equivalent(&eq1));
+}
+
+TEST(InMatchExpression, InMatchExpressionsWithUnequalCollatorsAreUnequal) {
+    CollatorInterfaceMock collator1(CollatorInterfaceMock::MockType::kReverseString);
+    InMatchExpression eq1(&collator1);
+    CollatorInterfaceMock collator2(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    InMatchExpression eq2(&collator2);
+    ASSERT(!eq1.equivalent(&eq2));
+}
+
+TEST(InMatchExpression, InMatchExpressionsWithEqualCollatorsAreEqual) {
+    CollatorInterfaceMock collator1(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    InMatchExpression eq1(&collator1);
+    CollatorInterfaceMock collator2(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    InMatchExpression eq2(&collator2);
+    ASSERT(eq1.equivalent(&eq2));
+}
+
+TEST(InMatchExpression, StringMatchingWithNullCollatorUsesBinaryComparison) {
+    BSONArray operand = BSON_ARRAY("string");
+    BSONObj notMatch = BSON("a"
+                            << "string2");
+    InMatchExpression in(nullptr);
+    in.getArrayFilterEntries()->addEquality(operand.firstElement());
+    ASSERT(!in.matchesSingleElement(notMatch["a"]));
+}
+
+TEST(InMatchExpression, StringMatchingRespectsCollation) {
+    BSONArray operand = BSON_ARRAY("string");
+    BSONObj match = BSON("a"
+                         << "string2");
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kAlwaysEqual);
+    InMatchExpression in(&collator);
+    in.getArrayFilterEntries()->addEquality(operand.firstElement());
+    ASSERT(in.matchesSingleElement(match["a"]));
 }
 
 /**

@@ -43,6 +43,8 @@ class RE;
 
 namespace mongo {
 
+class CollatorInterface;
+
 /**
  * This file contains leaves in the parse tree that are not array-based.
  *
@@ -83,7 +85,8 @@ private:
  */
 class ComparisonMatchExpression : public LeafMatchExpression {
 public:
-    ComparisonMatchExpression(MatchType type) : LeafMatchExpression(type) {}
+    ComparisonMatchExpression(MatchType type, CollatorInterface* collator)
+        : LeafMatchExpression(type), _collator(collator) {}
 
     Status init(StringData path, const BSONElement& rhs);
 
@@ -107,6 +110,7 @@ public:
 
 protected:
     BSONElement _rhs;
+    CollatorInterface* _collator;
 };
 
 //
@@ -115,9 +119,11 @@ protected:
 
 class EqualityMatchExpression : public ComparisonMatchExpression {
 public:
-    EqualityMatchExpression() : ComparisonMatchExpression(EQ) {}
+    EqualityMatchExpression(CollatorInterface* collator)
+        : ComparisonMatchExpression(EQ, collator) {}
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
-        std::unique_ptr<ComparisonMatchExpression> e = stdx::make_unique<EqualityMatchExpression>();
+        std::unique_ptr<ComparisonMatchExpression> e =
+            stdx::make_unique<EqualityMatchExpression>(_collator);
         e->init(path(), _rhs);
         if (getTag()) {
             e->setTag(getTag()->clone());
@@ -128,9 +134,10 @@ public:
 
 class LTEMatchExpression : public ComparisonMatchExpression {
 public:
-    LTEMatchExpression() : ComparisonMatchExpression(LTE) {}
+    LTEMatchExpression(CollatorInterface* collator) : ComparisonMatchExpression(LTE, collator) {}
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
-        std::unique_ptr<ComparisonMatchExpression> e = stdx::make_unique<LTEMatchExpression>();
+        std::unique_ptr<ComparisonMatchExpression> e =
+            stdx::make_unique<LTEMatchExpression>(_collator);
         e->init(path(), _rhs);
         if (getTag()) {
             e->setTag(getTag()->clone());
@@ -141,9 +148,10 @@ public:
 
 class LTMatchExpression : public ComparisonMatchExpression {
 public:
-    LTMatchExpression() : ComparisonMatchExpression(LT) {}
+    LTMatchExpression(CollatorInterface* collator) : ComparisonMatchExpression(LT, collator) {}
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
-        std::unique_ptr<ComparisonMatchExpression> e = stdx::make_unique<LTMatchExpression>();
+        std::unique_ptr<ComparisonMatchExpression> e =
+            stdx::make_unique<LTMatchExpression>(_collator);
         e->init(path(), _rhs);
         if (getTag()) {
             e->setTag(getTag()->clone());
@@ -154,9 +162,10 @@ public:
 
 class GTMatchExpression : public ComparisonMatchExpression {
 public:
-    GTMatchExpression() : ComparisonMatchExpression(GT) {}
+    GTMatchExpression(CollatorInterface* collator) : ComparisonMatchExpression(GT, collator) {}
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
-        std::unique_ptr<ComparisonMatchExpression> e = stdx::make_unique<GTMatchExpression>();
+        std::unique_ptr<ComparisonMatchExpression> e =
+            stdx::make_unique<GTMatchExpression>(_collator);
         e->init(path(), _rhs);
         if (getTag()) {
             e->setTag(getTag()->clone());
@@ -167,9 +176,10 @@ public:
 
 class GTEMatchExpression : public ComparisonMatchExpression {
 public:
-    GTEMatchExpression() : ComparisonMatchExpression(GTE) {}
+    GTEMatchExpression(CollatorInterface* collator) : ComparisonMatchExpression(GTE, collator) {}
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
-        std::unique_ptr<ComparisonMatchExpression> e = stdx::make_unique<GTEMatchExpression>();
+        std::unique_ptr<ComparisonMatchExpression> e =
+            stdx::make_unique<GTEMatchExpression>(_collator);
         e->init(path(), _rhs);
         if (getTag()) {
             e->setTag(getTag()->clone());
@@ -351,7 +361,8 @@ private:
  */
 class InMatchExpression : public LeafMatchExpression {
 public:
-    InMatchExpression() : LeafMatchExpression(MATCH_IN) {}
+    InMatchExpression(CollatorInterface* collator)
+        : LeafMatchExpression(MATCH_IN), _collator(collator) {}
     Status init(StringData path);
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const;
@@ -374,9 +385,14 @@ public:
         return _arrayEntries;
     }
 
+    CollatorInterface* getCollator() const {
+        return _collator;
+    }
+
 private:
     bool _matchesRealElement(const BSONElement& e) const;
     ArrayFilterEntries _arrayEntries;
+    CollatorInterface* _collator;
 };
 
 //

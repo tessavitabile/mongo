@@ -47,7 +47,7 @@ TEST(MatchExpressionTest, Parse1) {
 
 TEST(LeafMatchExpressionTest, Equal1) {
     BSONObj temp = BSON("x" << 5);
-    EqualityMatchExpression e;
+    EqualityMatchExpression e(nullptr);
     e.init("x", temp["x"]);
 
     ASSERT_TRUE(e.matchesBSON(fromjson("{ x : 5 }")));
@@ -66,7 +66,7 @@ TEST(LeafMatchExpressionTest, Comp1) {
     BSONObj temp = BSON("x" << 5);
 
     {
-        LTEMatchExpression e;
+        LTEMatchExpression e(nullptr);
         e.init("x", temp["x"]);
         ASSERT_TRUE(e.matchesBSON(fromjson("{ x : 5 }")));
         ASSERT_TRUE(e.matchesBSON(fromjson("{ x : 4 }")));
@@ -75,7 +75,7 @@ TEST(LeafMatchExpressionTest, Comp1) {
     }
 
     {
-        LTMatchExpression e;
+        LTMatchExpression e(nullptr);
         e.init("x", temp["x"]);
         ASSERT_FALSE(e.matchesBSON(fromjson("{ x : 5 }")));
         ASSERT_TRUE(e.matchesBSON(fromjson("{ x : 4 }")));
@@ -84,7 +84,7 @@ TEST(LeafMatchExpressionTest, Comp1) {
     }
 
     {
-        GTEMatchExpression e;
+        GTEMatchExpression e(nullptr);
         e.init("x", temp["x"]);
         ASSERT_TRUE(e.matchesBSON(fromjson("{ x : 5 }")));
         ASSERT_FALSE(e.matchesBSON(fromjson("{ x : 4 }")));
@@ -93,7 +93,7 @@ TEST(LeafMatchExpressionTest, Comp1) {
     }
 
     {
-        GTMatchExpression e;
+        GTMatchExpression e(nullptr);
         e.init("x", temp["x"]);
         ASSERT_FALSE(e.matchesBSON(fromjson("{ x : 5 }")));
         ASSERT_FALSE(e.matchesBSON(fromjson("{ x : 4 }")));
