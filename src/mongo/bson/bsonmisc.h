@@ -37,23 +37,28 @@ namespace mongo {
 
 int getGtLtOp(const BSONElement& e);
 
-struct BSONElementCmpWithoutField {
-    BSONElementCmpWithoutField(StringData::ComparatorInterface* c = nullptr) : comparator(c) {}
+class BSONElementCmpWithoutField {
+public:
+    BSONElementCmpWithoutField(
+        StringData::ComparatorInterface* stringComparator = nullptr)  // not owned
+        : _stringComparator(stringComparator) {}
 
     bool operator()(const BSONElement& l, const BSONElement& r) const {
-        return l.woCompare(r, false, comparator) < 0;
+        return l.woCompare(r, false, _stringComparator) < 0;
     }
 
-    StringData::ComparatorInterface* comparator;
+private:
+    StringData::ComparatorInterface* _stringComparator;
 };
 
 class BSONObjCmp {
 public:
     BSONObjCmp(const BSONObj& order = BSONObj(),
-               StringData::ComparatorInterface* comparator = nullptr)
-        : _order(order), _comparator(comparator) {}
+               StringData::ComparatorInterface* stringComparator = nullptr)  // not owned
+        : _order(order),
+          _stringComparator(stringComparator) {}
     bool operator()(const BSONObj& l, const BSONObj& r) const {
-        return l.woCompare(r, _order, true, _comparator) < 0;
+        return l.woCompare(r, _order, true, _stringComparator) < 0;
     }
     BSONObj order() const {
         return _order;
@@ -61,7 +66,7 @@ public:
 
 private:
     BSONObj _order;
-    StringData::ComparatorInterface* _comparator;
+    StringData::ComparatorInterface* _stringComparator;
 };
 
 typedef std::set<BSONObj, BSONObjCmp> BSONObjSet;
