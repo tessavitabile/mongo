@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "mongo/base/string_data_comparator_interface.h"
 #include "mongo/bson/bsonelement.h"
 #include "mongo/bson/bsonobj.h"
 
@@ -37,16 +38,22 @@ namespace mongo {
 int getGtLtOp(const BSONElement& e);
 
 struct BSONElementCmpWithoutField {
+    BSONElementCmpWithoutField(StringData::ComparatorInterface* c = nullptr) : comparator(c) {}
+
     bool operator()(const BSONElement& l, const BSONElement& r) const {
-        return l.woCompare(r, false) < 0;
+        return l.woCompare(r, false, comparator) < 0;
     }
+
+    StringData::ComparatorInterface* comparator;
 };
 
 class BSONObjCmp {
 public:
-    BSONObjCmp(const BSONObj& order = BSONObj()) : _order(order) {}
+    BSONObjCmp(const BSONObj& order = BSONObj(),
+               StringData::ComparatorInterface* comparator = nullptr)
+        : _order(order), _comparator(comparator) {}
     bool operator()(const BSONObj& l, const BSONObj& r) const {
-        return l.woCompare(r, _order) < 0;
+        return l.woCompare(r, _order, true, _comparator) < 0;
     }
     BSONObj order() const {
         return _order;
@@ -54,6 +61,7 @@ public:
 
 private:
     BSONObj _order;
+    StringData::ComparatorInterface* _comparator;
 };
 
 typedef std::set<BSONObj, BSONObjCmp> BSONObjSet;
