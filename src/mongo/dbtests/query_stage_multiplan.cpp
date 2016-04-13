@@ -145,8 +145,9 @@ public:
 
         // Make the filter.
         BSONObj filterObj = BSON("foo" << 7);
-        StatusWithMatchExpression statusWithMatcher =
-            MatchExpressionParser::parse(filterObj, ExtensionsCallbackDisallowExtensions());
+        CollatorInterface* collator = nullptr;
+        StatusWithMatchExpression statusWithMatcher = MatchExpressionParser::parse(
+            filterObj, ExtensionsCallbackDisallowExtensions(), collator);
         verify(statusWithMatcher.isOK());
         unique_ptr<MatchExpression> filter = std::move(statusWithMatcher.getValue());
         // Make the stage.

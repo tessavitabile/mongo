@@ -142,8 +142,9 @@ public:
 
         unique_ptr<WorkingSet> ws(new WorkingSet);
 
+        CollatorInterface* collator = nullptr;
         StatusWithMatchExpression statusWithMatcher = MatchExpressionParser::parse(
-            request.getQuery(), ExtensionsCallbackDisallowExtensions());
+            request.getQuery(), ExtensionsCallbackDisallowExtensions(), collator);
         ASSERT(statusWithMatcher.isOK());
         unique_ptr<MatchExpression> expression = std::move(statusWithMatcher.getValue());
 

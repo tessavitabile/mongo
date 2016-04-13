@@ -40,6 +40,7 @@
 
 namespace mongo {
 
+class CollatorInterface;
 class OperationContext;
 
 class MatchExpressionParser {
@@ -49,14 +50,16 @@ public:
      * the tree has views (BSONElement) into obj
      */
     static StatusWithMatchExpression parse(const BSONObj& obj,
-                                           const ExtensionsCallback& extensionsCallback) {
+                                           const ExtensionsCallback& extensionsCallback,
+                                           CollatorInterface* collator) {
         // The 0 initializes the match expression tree depth.
-        return MatchExpressionParser(&extensionsCallback)._parse(obj, 0);
+        return MatchExpressionParser(&extensionsCallback, collator)._parse(obj, 0);
     }
 
 private:
-    explicit MatchExpressionParser(const ExtensionsCallback* extensionsCallback)
-        : _extensionsCallback(extensionsCallback) {}
+    explicit MatchExpressionParser(const ExtensionsCallback* extensionsCallback,
+                                   CollatorInterface* collator)
+        : _extensionsCallback(extensionsCallback), _collator(collator) {}
 
     /**
      * 5 = false
@@ -149,6 +152,10 @@ private:
     // Performs parsing for the match extensions. We do not own this pointer - it has to live
     // as long as the parser is active.
     const ExtensionsCallback* _extensionsCallback;
+
+    // This collator is passed to any constructed ComparisonMatchExpressions and InMatchExpressions.
+    // We do not own this pointer - it has to live as long as the parser is active.
+    CollatorInterface* _collator;
 };
 
 typedef stdx::function<StatusWithMatchExpression(

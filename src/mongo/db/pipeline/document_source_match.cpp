@@ -89,8 +89,9 @@ Pipeline::SourceContainer::iterator DocumentSourceMatch::optimizeAt(
     if (nextMatch && !nextMatch->_isTextQuery) {
         _predicate = BSON("$and" << BSON_ARRAY(getQuery() << nextMatch->getQuery()));
 
-        StatusWithMatchExpression status =
-            uassertStatusOK(MatchExpressionParser::parse(_predicate, ExtensionsCallbackNoop()));
+        // TODO SERVER-23349: Pass the appropriate CollatorInterface* instead of nullptr.
+        StatusWithMatchExpression status = uassertStatusOK(
+            MatchExpressionParser::parse(_predicate, ExtensionsCallbackNoop(), nullptr));
         _expression = std::move(status.getValue());
 
         container->erase(std::next(itr));
@@ -432,8 +433,9 @@ void DocumentSourceMatch::addDependencies(MatchExpression* expression,
 DocumentSourceMatch::DocumentSourceMatch(const BSONObj& query,
                                          const intrusive_ptr<ExpressionContext>& pExpCtx)
     : DocumentSource(pExpCtx), _predicate(query.getOwned()), _isTextQuery(isTextQuery(query)) {
-    StatusWithMatchExpression status =
-        uassertStatusOK(MatchExpressionParser::parse(_predicate, ExtensionsCallbackNoop()));
+    // TODO SERVER-23349: Pass the appropriate CollatorInterface* instead of nullptr.
+    StatusWithMatchExpression status = uassertStatusOK(
+        MatchExpressionParser::parse(_predicate, ExtensionsCallbackNoop(), nullptr));
 
     _expression = std::move(status.getValue());
 }
