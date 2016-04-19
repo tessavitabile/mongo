@@ -44,7 +44,6 @@
 #include "mongo/db/matcher/extensions_callback_disallow_extensions.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/query/collation/collator_factory_interface.h"
-#include "mongo/db/query/collation/collator_interface.h"
 #include "mongo/db/service_context.h"
 #include "mongo/util/log.h"
 #include "mongo/util/scopeguard.h"
@@ -74,12 +73,10 @@ private:
 IndexCatalogEntry::IndexCatalogEntry(StringData ns,
                                      CollectionCatalogEntry* collection,
                                      IndexDescriptor* descriptor,
-                                     CollatorInterface* collator,
                                      CollectionInfoCache* infoCache)
     : _ns(ns.toString()),
       _collection(collection),
       _descriptor(descriptor),
-      _collator(collator),
       _infoCache(infoCache),
       _accessMethod(NULL),
       _headManager(new HeadManagerImpl(this)),
@@ -94,7 +91,6 @@ IndexCatalogEntry::~IndexCatalogEntry() {
     delete _headManager;
     delete _accessMethod;
     delete _descriptor;
-    delete _collator;
 }
 
 void IndexCatalogEntry::init(OperationContext* txn, IndexAccessMethod* accessMethod) {

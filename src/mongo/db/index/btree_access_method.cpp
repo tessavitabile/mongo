@@ -56,7 +56,7 @@ BtreeAccessMethod::BtreeAccessMethod(IndexCatalogEntry* btreeState, SortedDataIn
         _keyGenerator.reset(new BtreeKeyGeneratorV0(fieldNames, fixed, _descriptor->isSparse()));
     } else if (1 == _descriptor->version()) {
         _keyGenerator.reset(new BtreeKeyGeneratorV1(
-            fieldNames, fixed, _descriptor->isSparse(), btreeState->collator()));
+            fieldNames, fixed, _descriptor->isSparse(), btreeState->getCollator()));
     } else {
         massert(16745, "Invalid index version for key generation.", false);
     }

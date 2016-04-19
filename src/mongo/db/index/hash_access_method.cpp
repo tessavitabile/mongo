@@ -48,7 +48,7 @@ HashAccessMethod::HashAccessMethod(IndexCatalogEntry* btreeState, SortedDataInte
 
     ExpressionParams::parseHashParams(descriptor->infoObj(), &_seed, &_hashVersion, &_hashedField);
 
-    _collator = btreeState->collator();
+    _collator = btreeState->getCollator();
 }
 
 void HashAccessMethod::getKeys(const BSONObj& obj, BSONObjSet* keys) const {

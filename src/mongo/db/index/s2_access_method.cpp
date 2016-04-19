@@ -77,7 +77,7 @@ S2AccessMethod::S2AccessMethod(IndexCatalogEntry* btreeState, SortedDataInterfac
                   << "\n";
     }
 
-    _collator = btreeState->collator();
+    _collator = btreeState->getCollator();
 }
 
 // static

@@ -45,7 +45,7 @@ TwoDAccessMethod::TwoDAccessMethod(IndexCatalogEntry* btreeState, SortedDataInte
 
     ExpressionParams::parseTwoDParams(descriptor->infoObj(), &_params);
 
-    _collator = btreeState->collator();
+    _collator = btreeState->getCollator();
 }
 
 /** Finds the key objects to put in an index */

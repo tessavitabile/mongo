@@ -55,7 +55,6 @@ public:
     IndexCatalogEntry(StringData ns,
                       CollectionCatalogEntry* collection,  // not owned
                       IndexDescriptor* descriptor,         // ownership passes to me
-                      CollatorInterface* collator,         // ownership passes to me, optional
                       CollectionInfoCache* infoCache);     // not owned, optional
 
     ~IndexCatalogEntry();
@@ -80,16 +79,16 @@ public:
         return _accessMethod;
     }
 
-    CollatorInterface* collator() const {
-        return _collator;
-    }
-
     const Ordering& ordering() const {
         return _ordering;
     }
 
     const MatchExpression* getFilterExpression() const {
         return _filterExpression.get();
+    }
+
+    CollatorInterface* getCollator() {
+        return _collator.get();
     }
 
     /// ---------------------
@@ -140,11 +139,6 @@ private:
     CollectionCatalogEntry* _collection;  // not owned here
 
     IndexDescriptor* _descriptor;  // owned here
-
-    // Null if this index orders strings according to the simple binary compare. If non-null,
-    // represents the collator used to generate index keys for indexed strings. Only btree version
-    // 1, 2d, 2dsphere, and hashed indices may have a collator.
-    CollatorInterface* _collator;  // owned here
 
     CollectionInfoCache* _infoCache;  // not owned here
 
