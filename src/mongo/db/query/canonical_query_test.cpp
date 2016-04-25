@@ -29,12 +29,14 @@
 #include "mongo/db/query/canonical_query.h"
 
 #include "mongo/client/dbclientinterface.h"
+#include "mongo/db/client.h"
 #include "mongo/db/json.h"
 #include "mongo/db/matcher/extensions_callback_disallow_extensions.h"
 #include "mongo/db/matcher/extensions_callback_noop.h"
 #include "mongo/db/namespace_string.h"
 #include "mongo/db/query/collation/collator_interface_mock.h"
 #include "mongo/db/query/index_tag.h"
+#include "mongo/db/service_context_noop.h"
 #include "mongo/unittest/unittest.h"
 
 namespace mongo {
@@ -101,8 +103,58 @@ void assertNotEquivalent(const char* queryStr,
     FAIL(ss);
 }
 
+class CanonicalQueryTest : public mongo::unittest::Test {
+protected:
+    void setUp() {
+        _client = _serviceContext.makeClient("CanonicalQueryTest");
+        _opCtx = _client->makeOperationContext();
+    }
 
-TEST(CanonicalQueryTest, IsValidText) {
+    OperationContext* txn() {
+        return _opCtx.get();
+    }
+
+    /**
+    * Utility function to create a CanonicalQuery
+    */
+    unique_ptr<CanonicalQuery> canonicalize(const char* queryStr) {
+        BSONObj queryObj = fromjson(queryStr);
+        auto statusWithCQ = CanonicalQuery::canonicalize(
+            txn(), nss, queryObj, ExtensionsCallbackDisallowExtensions());
+        ASSERT_OK(statusWithCQ.getStatus());
+        return std::move(statusWithCQ.getValue());
+    }
+
+    std::unique_ptr<CanonicalQuery> canonicalize(const char* queryStr,
+                                                 const char* sortStr,
+                                                 const char* projStr) {
+        BSONObj queryObj = fromjson(queryStr);
+        BSONObj sortObj = fromjson(sortStr);
+        BSONObj projObj = fromjson(projStr);
+        auto statusWithCQ = CanonicalQuery::canonicalize(
+            txn(), nss, queryObj, sortObj, projObj, ExtensionsCallbackDisallowExtensions());
+        ASSERT_OK(statusWithCQ.getStatus());
+        return std::move(statusWithCQ.getValue());
+    }
+
+    /**
+     * Test function for CanonicalQuery::normalize.
+     */
+    void testNormalizeQuery(const char* queryStr, const char* expectedExprStr) {
+        unique_ptr<CanonicalQuery> cq(canonicalize(queryStr));
+        MatchExpression* me = cq->root();
+        BSONObj expectedExprObj = fromjson(expectedExprStr);
+        unique_ptr<MatchExpression> expectedExpr(parseMatchExpression(expectedExprObj));
+        assertEquivalent(queryStr, expectedExpr.get(), me);
+    }
+
+private:
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _client;
+    ServiceContext::UniqueOperationContext _opCtx;
+};
+
+TEST_F(CanonicalQueryTest, IsValidText) {
     // Passes in default values for LiteParsedQuery.
     // Filter inside LiteParsedQuery is not used.
     unique_ptr<LiteParsedQuery> lpq(assertGet(LiteParsedQuery::makeAsOpQuery(nss,
@@ -169,7 +221,7 @@ TEST(CanonicalQueryTest, IsValidText) {
         *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidTextTailable) {
+TEST_F(CanonicalQueryTest, IsValidTextTailable) {
     // Passes in default values for LiteParsedQuery.
     // Filter inside LiteParsedQuery is not used.
     int options = QueryOption_CursorTailable;
@@ -190,7 +242,7 @@ TEST(CanonicalQueryTest, IsValidTextTailable) {
     ASSERT_NOT_OK(isValid("{$text: {$search: 's'}}", *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidGeo) {
+TEST_F(CanonicalQueryTest, IsValidGeo) {
     // Passes in default values for LiteParsedQuery.
     // Filter inside LiteParsedQuery is not used.
     unique_ptr<LiteParsedQuery> lpq(assertGet(LiteParsedQuery::makeAsOpQuery(nss,
@@ -267,7 +319,7 @@ TEST(CanonicalQueryTest, IsValidGeo) {
         *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidTextAndGeo) {
+TEST_F(CanonicalQueryTest, IsValidTextAndGeo) {
     // Passes in default values for LiteParsedQuery.
     // Filter inside LiteParsedQuery is not used.
     unique_ptr<LiteParsedQuery> lpq(assertGet(LiteParsedQuery::makeAsOpQuery(nss,
@@ -299,7 +351,7 @@ TEST(CanonicalQueryTest, IsValidTextAndGeo) {
         *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidTextAndNaturalAscending) {
+TEST_F(CanonicalQueryTest, IsValidTextAndNaturalAscending) {
     // Passes in default values for LiteParsedQuery except for sort order.
     // Filter inside LiteParsedQuery is not used.
     BSONObj sort = fromjson("{$natural: 1}");
@@ -320,7 +372,7 @@ TEST(CanonicalQueryTest, IsValidTextAndNaturalAscending) {
     ASSERT_NOT_OK(isValid("{$text: {$search: 's'}}", *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidTextAndNaturalDescending) {
+TEST_F(CanonicalQueryTest, IsValidTextAndNaturalDescending) {
     // Passes in default values for LiteParsedQuery except for sort order.
     // Filter inside LiteParsedQuery is not used.
     BSONObj sort = fromjson("{$natural: -1}");
@@ -341,7 +393,7 @@ TEST(CanonicalQueryTest, IsValidTextAndNaturalDescending) {
     ASSERT_NOT_OK(isValid("{$text: {$search: 's'}}", *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidTextAndHint) {
+TEST_F(CanonicalQueryTest, IsValidTextAndHint) {
     // Passes in default values for LiteParsedQuery except for hint.
     // Filter inside LiteParsedQuery is not used.
     BSONObj hint = fromjson("{a: 1}");
@@ -363,7 +415,7 @@ TEST(CanonicalQueryTest, IsValidTextAndHint) {
 }
 
 // SERVER-14366
-TEST(CanonicalQueryTest, IsValidGeoNearNaturalSort) {
+TEST_F(CanonicalQueryTest, IsValidGeoNearNaturalSort) {
     // Passes in default values for LiteParsedQuery except for sort order.
     // Filter inside LiteParsedQuery is not used.
     BSONObj sort = fromjson("{$natural: 1}");
@@ -385,7 +437,7 @@ TEST(CanonicalQueryTest, IsValidGeoNearNaturalSort) {
 }
 
 // SERVER-14366
-TEST(CanonicalQueryTest, IsValidGeoNearNaturalHint) {
+TEST_F(CanonicalQueryTest, IsValidGeoNearNaturalHint) {
     // Passes in default values for LiteParsedQuery except for the hint.
     // Filter inside LiteParsedQuery is not used.
     BSONObj hint = fromjson("{$natural: 1}");
@@ -406,7 +458,7 @@ TEST(CanonicalQueryTest, IsValidGeoNearNaturalHint) {
     ASSERT_NOT_OK(isValid("{a: {$near: {$geometry: {type: 'Point', coordinates: [0, 0]}}}}", *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidTextAndSnapshot) {
+TEST_F(CanonicalQueryTest, IsValidTextAndSnapshot) {
     // Passes in default values for LiteParsedQuery except for snapshot.
     // Filter inside LiteParsedQuery is not used.
     bool snapshot = true;
@@ -427,14 +479,14 @@ TEST(CanonicalQueryTest, IsValidTextAndSnapshot) {
     ASSERT_NOT_OK(isValid("{$text: {$search: 's'}}", *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidSortKeyMetaProjection) {
+TEST_F(CanonicalQueryTest, IsValidSortKeyMetaProjection) {
     // Passing a sortKey meta-projection without a sort is an error.
     {
         const bool isExplain = false;
         auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(
             nss, fromjson("{find: 'testcoll', projection: {foo: {$meta: 'sortKey'}}}"), isExplain));
-        auto cq =
-            CanonicalQuery::canonicalize(lpq.release(), ExtensionsCallbackDisallowExtensions());
+        auto cq = CanonicalQuery::canonicalize(
+            txn(), lpq.release(), ExtensionsCallbackDisallowExtensions());
         ASSERT_NOT_OK(cq.getStatus());
     }
 
@@ -445,13 +497,13 @@ TEST(CanonicalQueryTest, IsValidSortKeyMetaProjection) {
             nss,
             fromjson("{find: 'testcoll', projection: {foo: {$meta: 'sortKey'}}, sort: {bar: 1}}"),
             isExplain));
-        auto cq =
-            CanonicalQuery::canonicalize(lpq.release(), ExtensionsCallbackDisallowExtensions());
+        auto cq = CanonicalQuery::canonicalize(
+            txn(), lpq.release(), ExtensionsCallbackDisallowExtensions());
         ASSERT_OK(cq.getStatus());
     }
 }
 
-TEST(CanonicalQueryTest, IsValidNaturalSortIndexHint) {
+TEST_F(CanonicalQueryTest, IsValidNaturalSortIndexHint) {
     const bool isExplain = false;
     auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(
         nss, fromjson("{find: 'testcoll', sort: {$natural: 1}, hint: {a: 1}}"), isExplain));
@@ -460,7 +512,7 @@ TEST(CanonicalQueryTest, IsValidNaturalSortIndexHint) {
     ASSERT_NOT_OK(isValid("{}", *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidNaturalSortNaturalHint) {
+TEST_F(CanonicalQueryTest, IsValidNaturalSortNaturalHint) {
     const bool isExplain = false;
     auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(
         nss, fromjson("{find: 'testcoll', sort: {$natural: 1}, hint: {$natural: 1}}"), isExplain));
@@ -469,7 +521,7 @@ TEST(CanonicalQueryTest, IsValidNaturalSortNaturalHint) {
     ASSERT_OK(isValid("{}", *lpq));
 }
 
-TEST(CanonicalQueryTest, IsValidNaturalSortNaturalHintDifferentDirections) {
+TEST_F(CanonicalQueryTest, IsValidNaturalSortNaturalHintDifferentDirections) {
     const bool isExplain = false;
     auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(
         nss, fromjson("{find: 'testcoll', sort: {$natural: 1}, hint: {$natural: -1}}"), isExplain));
@@ -511,87 +563,53 @@ void testSortTree(const char* unsortedQueryStr, const char* sortedQueryStr) {
 }
 
 // Test that an EQ expression sorts before a GT expression.
-TEST(CanonicalQueryTest, SortTreeMatchTypeComparison) {
+TEST_F(CanonicalQueryTest, SortTreeMatchTypeComparison) {
     testSortTree("{a: {$gt: 1}, a: 1}", "{a: 1, a: {$gt: 1}}");
 }
 
 // Test that an EQ expression on path "a" sorts before an EQ expression on path "b".
-TEST(CanonicalQueryTest, SortTreePathComparison) {
+TEST_F(CanonicalQueryTest, SortTreePathComparison) {
     testSortTree("{b: 1, a: 1}", "{a: 1, b: 1}");
     testSortTree("{'a.b': 1, a: 1}", "{a: 1, 'a.b': 1}");
     testSortTree("{'a.c': 1, 'a.b': 1}", "{'a.b': 1, 'a.c': 1}");
 }
 
 // Test that AND expressions sort according to their first differing child.
-TEST(CanonicalQueryTest, SortTreeChildComparison) {
+TEST_F(CanonicalQueryTest, SortTreeChildComparison) {
     testSortTree("{$or: [{a: 1, c: 1}, {a: 1, b: 1}]}", "{$or: [{a: 1, b: 1}, {a: 1, c: 1}]}");
 }
 
 // Test that an AND with 2 children sorts before an AND with 3 children, if the first 2 children
 // are equivalent in both.
-TEST(CanonicalQueryTest, SortTreeNumChildrenComparison) {
+TEST_F(CanonicalQueryTest, SortTreeNumChildrenComparison) {
     testSortTree("{$or: [{a: 1, b: 1, c: 1}, {a: 1, b: 1}]}",
                  "{$or: [{a: 1, b: 1}, {a: 1, b: 1, c: 1}]}");
 }
 
 /**
- * Utility function to create a CanonicalQuery
- */
-unique_ptr<CanonicalQuery> canonicalize(const char* queryStr) {
-    BSONObj queryObj = fromjson(queryStr);
-    auto statusWithCQ =
-        CanonicalQuery::canonicalize(nss, queryObj, ExtensionsCallbackDisallowExtensions());
-    ASSERT_OK(statusWithCQ.getStatus());
-    return std::move(statusWithCQ.getValue());
-}
-
-std::unique_ptr<CanonicalQuery> canonicalize(const char* queryStr,
-                                             const char* sortStr,
-                                             const char* projStr) {
-    BSONObj queryObj = fromjson(queryStr);
-    BSONObj sortObj = fromjson(sortStr);
-    BSONObj projObj = fromjson(projStr);
-    auto statusWithCQ = CanonicalQuery::canonicalize(
-        nss, queryObj, sortObj, projObj, ExtensionsCallbackDisallowExtensions());
-    ASSERT_OK(statusWithCQ.getStatus());
-    return std::move(statusWithCQ.getValue());
-}
-
-/**
  * Test that CanonicalQuery::isIsolated() returns correctly.
  */
-TEST(CanonicalQueryTest, IsIsolatedReturnsTrueWithIsolated) {
+TEST_F(CanonicalQueryTest, IsIsolatedReturnsTrueWithIsolated) {
     unique_ptr<CanonicalQuery> cq = canonicalize("{$isolated: 1, x: 3}");
     ASSERT_TRUE(cq->isIsolated());
 }
 
-TEST(CanonicalQueryTest, IsIsolatedReturnsTrueWithAtomic) {
+TEST_F(CanonicalQueryTest, IsIsolatedReturnsTrueWithAtomic) {
     unique_ptr<CanonicalQuery> cq = canonicalize("{$atomic: 1, x: 3}");
     ASSERT_TRUE(cq->isIsolated());
 }
 
-TEST(CanonicalQueryTest, IsIsolatedReturnsFalseWithIsolated) {
+TEST_F(CanonicalQueryTest, IsIsolatedReturnsFalseWithIsolated) {
     unique_ptr<CanonicalQuery> cq = canonicalize("{$isolated: 0, x: 3}");
     ASSERT_FALSE(cq->isIsolated());
 }
 
-TEST(CanonicalQueryTest, IsIsolatedReturnsFalseWithAtomic) {
+TEST_F(CanonicalQueryTest, IsIsolatedReturnsFalseWithAtomic) {
     unique_ptr<CanonicalQuery> cq = canonicalize("{$atomic: 0, x: 3}");
     ASSERT_FALSE(cq->isIsolated());
 }
 
-/**
- * Test function for CanonicalQuery::normalize.
- */
-void testNormalizeQuery(const char* queryStr, const char* expectedExprStr) {
-    unique_ptr<CanonicalQuery> cq(canonicalize(queryStr));
-    MatchExpression* me = cq->root();
-    BSONObj expectedExprObj = fromjson(expectedExprStr);
-    unique_ptr<MatchExpression> expectedExpr(parseMatchExpression(expectedExprObj));
-    assertEquivalent(queryStr, expectedExpr.get(), me);
-}
-
-TEST(CanonicalQueryTest, NormalizeQuerySort) {
+TEST_F(CanonicalQueryTest, NormalizeQuerySort) {
     // Field names
     testNormalizeQuery("{b: 1, a: 1}", "{a: 1, b: 1}");
     // Operator types
@@ -600,7 +618,7 @@ TEST(CanonicalQueryTest, NormalizeQuerySort) {
     testNormalizeQuery("{a: {$elemMatch: {c: 1, b:1}}}", "{a: {$elemMatch: {b: 1, c:1}}}");
 }
 
-TEST(CanonicalQueryTest, NormalizeQueryTree) {
+TEST_F(CanonicalQueryTest, NormalizeQueryTree) {
     // Single-child $or elimination.
     testNormalizeQuery("{$or: [{b: 1}]}", "{b: 1}");
     // Single-child $and elimination.
@@ -619,7 +637,7 @@ TEST(CanonicalQueryTest, NormalizeQueryTree) {
     testNormalizeQuery("{a: {$in: [/./, 3]}}", "{a: {$in: [/./, 3]}}");
 }
 
-TEST(CanonicalQueryTest, NormalizeWithInPreservesTags) {
+TEST_F(CanonicalQueryTest, NormalizeWithInPreservesTags) {
     BSONObj obj = fromjson("{x: {$in: [1]}}");
     unique_ptr<MatchExpression> matchExpression(parseMatchExpression(obj));
     matchExpression->setTag(new IndexTag(2U, 1U, false));
@@ -629,7 +647,7 @@ TEST(CanonicalQueryTest, NormalizeWithInPreservesTags) {
     ASSERT_EQ(2U, tag->index);
 }
 
-TEST(CanonicalQueryTest, NormalizeWithInAndRegexPreservesTags) {
+TEST_F(CanonicalQueryTest, NormalizeWithInAndRegexPreservesTags) {
     BSONObj obj = fromjson("{x: {$in: [/a.b/]}}");
     unique_ptr<MatchExpression> matchExpression(parseMatchExpression(obj));
     matchExpression->setTag(new IndexTag(2U, 1U, false));
@@ -639,7 +657,7 @@ TEST(CanonicalQueryTest, NormalizeWithInAndRegexPreservesTags) {
     ASSERT_EQ(2U, tag->index);
 }
 
-TEST(CanonicalQueryTest, NormalizeWithInPreservesCollator) {
+TEST_F(CanonicalQueryTest, NormalizeWithInPreservesCollator) {
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
     auto inMatchExpression = stdx::make_unique<InMatchExpression>(&collator);
     BSONObj obj = fromjson("{'': 'string'}");
@@ -652,17 +670,17 @@ TEST(CanonicalQueryTest, NormalizeWithInPreservesCollator) {
     ASSERT_EQ(eqMatchExpression->getCollator(), &collator);
 }
 
-TEST(CanonicalQueryTest, CanonicalizeFromBaseQuery) {
+TEST_F(CanonicalQueryTest, CanonicalizeFromBaseQuery) {
     const bool isExplain = true;
     const std::string cmdStr =
         "{find:'bogusns', filter:{$or:[{a:1,b:1},{a:1,c:1}]}, projection:{a:1}, sort:{b:1}}";
     auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(nss, fromjson(cmdStr), isExplain));
     auto baseCq = assertGet(
-        CanonicalQuery::canonicalize(lpq.release(), ExtensionsCallbackDisallowExtensions()));
+        CanonicalQuery::canonicalize(txn(), lpq.release(), ExtensionsCallbackDisallowExtensions()));
 
     MatchExpression* firstClauseExpr = baseCq->root()->getChild(0);
     auto childCq = assertGet(CanonicalQuery::canonicalize(
-        *baseCq, firstClauseExpr, ExtensionsCallbackDisallowExtensions()));
+        txn(), *baseCq, firstClauseExpr, ExtensionsCallbackDisallowExtensions()));
 
     // Descriptive test. The childCq's filter should be the relevant $or clause, rather than the
     // entire query predicate.

@@ -30,10 +30,12 @@
 
 #include "mongo/platform/basic.h"
 
+#include "mongo/db/client.h"
 #include "mongo/db/json.h"
 #include "mongo/db/matcher/extensions_callback_noop.h"
 #include "mongo/db/namespace_string.h"
 #include "mongo/db/query/canonical_query.h"
+#include "mongo/db/service_context_noop.h"
 #include "mongo/s/chunk_manager.h"
 #include "mongo/s/shard_key_pattern.h"
 #include "mongo/unittest/unittest.h"
@@ -53,74 +55,93 @@ using std::make_pair;
  *   Pull the implementation out of chunk.cpp
  */
 
-// Utility function to create a CanonicalQuery
-unique_ptr<CanonicalQuery> canonicalize(const char* queryStr) {
-    BSONObj queryObj = fromjson(queryStr);
-    const NamespaceString nss("test.foo");
-    auto statusWithCQ = CanonicalQuery::canonicalize(nss, queryObj, ExtensionsCallbackNoop());
-    ASSERT_OK(statusWithCQ.getStatus());
-    return std::move(statusWithCQ.getValue());
-}
+class CMCollapseTreeTest : public mongo::unittest::Test {
+protected:
+    void setUp() {
+        _client = _serviceContext.makeClient("CMCollapseTreeTest");
+        _opCtx = _client->makeOperationContext();
+    }
 
-void checkIndexBoundsWithKey(const char* keyStr,
-                             const char* queryStr,
-                             const IndexBounds& expectedBounds) {
-    unique_ptr<CanonicalQuery> query(canonicalize(queryStr));
-    ASSERT(query.get() != NULL);
+    OperationContext* txn() {
+        return _opCtx.get();
+    }
 
-    BSONObj key = fromjson(keyStr);
+    // Utility function to create a CanonicalQuery
+    unique_ptr<CanonicalQuery> canonicalize(const char* queryStr) {
+        BSONObj queryObj = fromjson(queryStr);
+        const NamespaceString nss("test.foo");
+        auto statusWithCQ =
+            CanonicalQuery::canonicalize(txn(), nss, queryObj, ExtensionsCallbackNoop());
+        ASSERT_OK(statusWithCQ.getStatus());
+        return std::move(statusWithCQ.getValue());
+    }
 
-    IndexBounds indexBounds = ChunkManager::getIndexBoundsForQuery(key, *query.get());
-    ASSERT_EQUALS(indexBounds.size(), expectedBounds.size());
-    for (size_t i = 0; i < indexBounds.size(); i++) {
-        const OrderedIntervalList& oil = indexBounds.fields[i];
-        const OrderedIntervalList& expectedOil = expectedBounds.fields[i];
+    void checkIndexBoundsWithKey(const char* keyStr,
+                                 const char* queryStr,
+                                 const IndexBounds& expectedBounds) {
+        unique_ptr<CanonicalQuery> query(canonicalize(queryStr));
+        ASSERT(query.get() != NULL);
+
+        BSONObj key = fromjson(keyStr);
+
+        IndexBounds indexBounds = ChunkManager::getIndexBoundsForQuery(key, *query.get());
+        ASSERT_EQUALS(indexBounds.size(), expectedBounds.size());
+        for (size_t i = 0; i < indexBounds.size(); i++) {
+            const OrderedIntervalList& oil = indexBounds.fields[i];
+            const OrderedIntervalList& expectedOil = expectedBounds.fields[i];
+            ASSERT_EQUALS(oil.intervals.size(), expectedOil.intervals.size());
+            for (size_t i = 0; i < oil.intervals.size(); i++) {
+                if (Interval::INTERVAL_EQUALS !=
+                    oil.intervals[i].compare(expectedOil.intervals[i])) {
+                    log() << oil.intervals[i] << " != " << expectedOil.intervals[i];
+                }
+                ASSERT_EQUALS(Interval::INTERVAL_EQUALS,
+                              oil.intervals[i].compare(expectedOil.intervals[i]));
+            }
+        }
+    }
+
+    // Assume shard key is { a: 1 }
+    void checkIndexBounds(const char* queryStr, const OrderedIntervalList& expectedOil) {
+        unique_ptr<CanonicalQuery> query(canonicalize(queryStr));
+        ASSERT(query.get() != NULL);
+
+        BSONObj key = fromjson("{a: 1}");
+
+        IndexBounds indexBounds = ChunkManager::getIndexBoundsForQuery(key, *query.get());
+        ASSERT_EQUALS(indexBounds.size(), 1U);
+        const OrderedIntervalList& oil = indexBounds.fields.front();
+
+        if (oil.intervals.size() != expectedOil.intervals.size()) {
+            for (size_t i = 0; i < oil.intervals.size(); i++) {
+                log() << oil.intervals[i];
+            }
+        }
+
         ASSERT_EQUALS(oil.intervals.size(), expectedOil.intervals.size());
         for (size_t i = 0; i < oil.intervals.size(); i++) {
-            if (Interval::INTERVAL_EQUALS != oil.intervals[i].compare(expectedOil.intervals[i])) {
-                log() << oil.intervals[i] << " != " << expectedOil.intervals[i];
-            }
             ASSERT_EQUALS(Interval::INTERVAL_EQUALS,
                           oil.intervals[i].compare(expectedOil.intervals[i]));
         }
     }
-}
 
-// Assume shard key is { a: 1 }
-void checkIndexBounds(const char* queryStr, const OrderedIntervalList& expectedOil) {
-    unique_ptr<CanonicalQuery> query(canonicalize(queryStr));
-    ASSERT(query.get() != NULL);
-
-    BSONObj key = fromjson("{a: 1}");
-
-    IndexBounds indexBounds = ChunkManager::getIndexBoundsForQuery(key, *query.get());
-    ASSERT_EQUALS(indexBounds.size(), 1U);
-    const OrderedIntervalList& oil = indexBounds.fields.front();
-
-    if (oil.intervals.size() != expectedOil.intervals.size()) {
-        for (size_t i = 0; i < oil.intervals.size(); i++) {
-            log() << oil.intervals[i];
-        }
-    }
-
-    ASSERT_EQUALS(oil.intervals.size(), expectedOil.intervals.size());
-    for (size_t i = 0; i < oil.intervals.size(); i++) {
-        ASSERT_EQUALS(Interval::INTERVAL_EQUALS,
-                      oil.intervals[i].compare(expectedOil.intervals[i]));
-    }
-}
+private:
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _client;
+    ServiceContext::UniqueOperationContext _opCtx;
+};
 
 const double INF = std::numeric_limits<double>::infinity();
 
 // { a: 2 } -> a: [2, 2]
-TEST(CMCollapseTreeTest, Basic) {
+TEST_F(CMCollapseTreeTest, Basic) {
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON("" << 2 << "" << 2), true, true));
     checkIndexBounds("{a: 2}", expected);
 }
 
 // { b: 2 } -> a: [MinKey, MaxKey]
-TEST(CMCollapseTreeTest, AllValue) {
+TEST_F(CMCollapseTreeTest, AllValue) {
     OrderedIntervalList expected;
     BSONObjBuilder builder;
     builder.appendMinKey("");
@@ -130,7 +151,7 @@ TEST(CMCollapseTreeTest, AllValue) {
 }
 
 // { 'a' : { '$not' : { '$gt' : 1 } } } -> a: [MinKey, 1.0], (inf.0, MaxKey]
-TEST(CMCollapseTreeTest, NegativeGT) {
+TEST_F(CMCollapseTreeTest, NegativeGT) {
     OrderedIntervalList expected;
     {
         BSONObjBuilder builder;
@@ -148,7 +169,7 @@ TEST(CMCollapseTreeTest, NegativeGT) {
 }
 
 // {$or: [{a: 20}, {$and: [{a:1}, {b:7}]}]} -> a: [1.0, 1.0], [20.0, 20.0]
-TEST(CMCollapseTreeTest, OrWithAndChild) {
+TEST_F(CMCollapseTreeTest, OrWithAndChild) {
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON("" << 1.0 << "" << 1.0), true, true));
     expected.intervals.push_back(Interval(BSON("" << 20.0 << "" << 20.0), true, true));
@@ -156,7 +177,7 @@ TEST(CMCollapseTreeTest, OrWithAndChild) {
 }
 
 // {a:20, $or: [{b:1}, {c:7}]} -> a: [20.0, 20.0]
-TEST(CMCollapseTreeTest, AndWithUnindexedOrChild) {
+TEST_F(CMCollapseTreeTest, AndWithUnindexedOrChild) {
     // Logic rewrite could give a tree with root OR.
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON("" << 20.0 << "" << 20.0), true, true));
@@ -164,7 +185,7 @@ TEST(CMCollapseTreeTest, AndWithUnindexedOrChild) {
 }
 
 // {$or: [{a:{$gt:2,$lt:10}}, {a:{$gt:0,$lt:5}}]} -> a: (0.0, 10.0)
-TEST(CMCollapseTreeTest, OrOfAnd) {
+TEST_F(CMCollapseTreeTest, OrOfAnd) {
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON("" << 0.0 << "" << 10.0), false, false));
     checkIndexBounds("{$or: [{a:{$gt:2,$lt:10}}, {a:{$gt:0,$lt:5}}]}", expected);
@@ -172,7 +193,7 @@ TEST(CMCollapseTreeTest, OrOfAnd) {
 
 // {$or: [{a:{$gt:2,$lt:10}}, {a:{$gt:0,$lt:15}}, {a:{$gt:20}}]}
 //   -> a: (0.0, 15.0), (20.0, inf.0]
-TEST(CMCollapseTreeTest, OrOfAnd2) {
+TEST_F(CMCollapseTreeTest, OrOfAnd2) {
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON("" << 0.0 << "" << 15.0), false, false));
     expected.intervals.push_back(Interval(BSON("" << 20.0 << "" << INF), false, true));
@@ -180,7 +201,7 @@ TEST(CMCollapseTreeTest, OrOfAnd2) {
 }
 
 // "{$or: [{a:{$gt:1,$lt:5},b:6}, {a:3,b:{$gt:0,$lt:10}}]}" -> a: (1.0, 5.0)
-TEST(CMCollapseTreeTest, OrOfAnd3) {
+TEST_F(CMCollapseTreeTest, OrOfAnd3) {
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON("" << 1.0 << "" << 5.0), false, false));
     checkIndexBounds("{$or: [{a:{$gt:1,$lt:5},b:6}, {a:3,b:{$gt:0,$lt:10}}]}", expected);
@@ -193,7 +214,7 @@ TEST(CMCollapseTreeTest, OrOfAnd3) {
 // "{$or: [{a:{$gt:1,$lt:5}, b:{$gt:0,$lt:3}, c:6}, "
 //        "{a:3, b:{$gt:1,$lt:2}, c:{$gt:0,$lt:10}}]}",
 // -> a: (1.0, 5.0), b: (0.0, 3.0)
-TEST(CMCollapseTreeTest, OrOfAnd4) {
+TEST_F(CMCollapseTreeTest, OrOfAnd4) {
     IndexBounds expectedBounds;
     expectedBounds.fields.push_back(OrderedIntervalList());
     expectedBounds.fields.push_back(OrderedIntervalList());
@@ -212,7 +233,7 @@ TEST(CMCollapseTreeTest, OrOfAnd4) {
 // "{$or: [{a:{$gt:1,$lt:5}, c:6}, "
 //        "{a:3, b:{$gt:1,$lt:2}, c:{$gt:0,$lt:10}}]}"));
 // ->
-TEST(CMCollapseTreeTest, OrOfAnd5) {
+TEST_F(CMCollapseTreeTest, OrOfAnd5) {
     IndexBounds expectedBounds;
     expectedBounds.fields.push_back(OrderedIntervalList());
     expectedBounds.fields.push_back(OrderedIntervalList());
@@ -232,7 +253,7 @@ TEST(CMCollapseTreeTest, OrOfAnd5) {
 
 // {$or: [{a:{$in:[1]},b:{$in:[1]}}, {a:{$in:[1,5]},b:{$in:[1,5]}}]}
 // -> a: [1], [5]; b: [1], [5]
-TEST(CMCollapseTreeTest, OrOfAnd6) {
+TEST_F(CMCollapseTreeTest, OrOfAnd6) {
     IndexBounds expectedBounds;
     expectedBounds.fields.push_back(OrderedIntervalList());
     expectedBounds.fields.push_back(OrderedIntervalList());
@@ -260,7 +281,7 @@ TEST(CMCollapseTreeTest, OrOfAnd6) {
 
 // {a : {$elemMatch: {b:1}}} -> a.b: [MinKey, MaxKey]
 // Shard key doesn't allow multikey, but query on array should succeed without error.
-TEST(CMCollapseTreeTest, ElemMatchOneField) {
+TEST_F(CMCollapseTreeTest, ElemMatchOneField) {
     IndexBounds expectedBounds;
     expectedBounds.fields.push_back(OrderedIntervalList());
     OrderedIntervalList& oil = expectedBounds.fields.front();
@@ -271,7 +292,7 @@ TEST(CMCollapseTreeTest, ElemMatchOneField) {
 // {foo: {$all: [ {$elemMatch: {a:1, b:1}}, {$elemMatch: {a:2, b:2}}]}}
 //    -> foo.a: [1, 1]
 // Or -> foo.a: [2, 2]
-TEST(CMCollapseTreeTest, BasicAllElemMatch) {
+TEST_F(CMCollapseTreeTest, BasicAllElemMatch) {
     Interval expectedInterval(BSON("" << 1 << "" << 1), true, true);
 
     const char* queryStr = "{foo: {$all: [ {$elemMatch: {a:1, b:1}} ]}}";
@@ -292,7 +313,7 @@ TEST(CMCollapseTreeTest, BasicAllElemMatch) {
 }
 
 // {a : [1, 2, 3]} -> a: [1, 1], [[1, 2, 3], [1, 2, 3]]
-TEST(CMCollapseTreeTest, ArrayEquality) {
+TEST_F(CMCollapseTreeTest, ArrayEquality) {
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON("" << 1 << "" << 1), true, true));
     BSONArray array(BSON_ARRAY(1 << 2 << 3));
@@ -308,7 +329,7 @@ TEST(CMCollapseTreeTest, ArrayEquality) {
 //
 
 // { a: /abc/ } -> a: ["", {}), [/abc/, /abc/]
-TEST(CMCollapseTreeTest, Regex) {
+TEST_F(CMCollapseTreeTest, Regex) {
     OrderedIntervalList expected;
     expected.intervals.push_back(Interval(BSON(""
                                                << ""
@@ -323,7 +344,7 @@ TEST(CMCollapseTreeTest, Regex) {
 }
 
 // {$where: 'this.credits == this.debits' }
-TEST(CMCollapseTreeTest, Where) {
+TEST_F(CMCollapseTreeTest, Where) {
     OrderedIntervalList expected;
     BSONObjBuilder builder;
     builder.appendMinKey("");
@@ -333,7 +354,7 @@ TEST(CMCollapseTreeTest, Where) {
 }
 
 // { $text: { $search: "coffee -cake" } }
-TEST(CMCollapseTreeTest, Text) {
+TEST_F(CMCollapseTreeTest, Text) {
     OrderedIntervalList expected;
     BSONObjBuilder builder;
     builder.appendMinKey("");
@@ -343,7 +364,7 @@ TEST(CMCollapseTreeTest, Text) {
 }
 
 // { a: 2, $text: { $search: "leche", $language: "es" } }
-TEST(CMCollapseTreeTest, TextWithQuery) {
+TEST_F(CMCollapseTreeTest, TextWithQuery) {
     OrderedIntervalList expected;
     BSONObjBuilder builder;
     builder.appendMinKey("");
@@ -353,7 +374,7 @@ TEST(CMCollapseTreeTest, TextWithQuery) {
 }
 
 //  { a: 0 } -> hashed a: [hash(0), hash(0)]
-TEST(CMCollapseTreeTest, HashedSinglePoint) {
+TEST_F(CMCollapseTreeTest, HashedSinglePoint) {
     const char* queryStr = "{ a: 0 }";
     unique_ptr<CanonicalQuery> query(canonicalize(queryStr));
     ASSERT(query.get() != NULL);
@@ -369,7 +390,7 @@ TEST(CMCollapseTreeTest, HashedSinglePoint) {
 }
 
 // { a: { $lt: 2, $gt: 1} } -> hashed a: [Minkey, Maxkey]
-TEST(CMCollapseTreeTest, HashedRange) {
+TEST_F(CMCollapseTreeTest, HashedRange) {
     IndexBounds expectedBounds;
     expectedBounds.fields.push_back(OrderedIntervalList());
     OrderedIntervalList& expectedOil = expectedBounds.fields.front();
@@ -381,7 +402,7 @@ TEST(CMCollapseTreeTest, HashedRange) {
 }
 
 // { a: /abc/ } -> hashed a: [Minkey, Maxkey]
-TEST(CMCollapseTreeTest, HashedRegex) {
+TEST_F(CMCollapseTreeTest, HashedRegex) {
     IndexBounds expectedBounds;
     expectedBounds.fields.push_back(OrderedIntervalList());
     OrderedIntervalList& expectedOil = expectedBounds.fields.front();

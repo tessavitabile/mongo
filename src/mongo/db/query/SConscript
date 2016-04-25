@@ -91,6 +91,7 @@ env.CppUnitTest(
     LIBDEPS=[
         "query",
         "$BUILD_DIR/mongo/db/serveronly",
+        "$BUILD_DIR/mongo/db/service_context",
         "$BUILD_DIR/mongo/dbtests/mocklib",
         "$BUILD_DIR/mongo/util/ntservice_mock",
     ],
@@ -188,6 +189,7 @@ env.Library(
     ],
     LIBDEPS=[
         "query_planner_test_lib",
+        "$BUILD_DIR/mongo/db/service_context",
         "$BUILD_DIR/mongo/unittest/unittest",
     ],
 )
@@ -210,6 +212,7 @@ env.CppUnitTest(
     LIBDEPS=[
         "collation/collator_interface_mock",
         "query_planner",
+        "$BUILD_DIR/mongo/db/service_context",
     ],
 )
 

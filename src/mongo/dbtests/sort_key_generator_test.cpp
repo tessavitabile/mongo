@@ -28,8 +28,10 @@
 
 #include "mongo/platform/basic.h"
 
+#include "mongo/db/client.h"
 #include "mongo/db/exec/sort_key_generator.h"
 #include "mongo/db/json.h"
+#include "mongo/db/service_context_noop.h"
 #include "mongo/stdx/memory.h"
 #include "mongo/unittest/unittest.h"
 
@@ -37,97 +39,116 @@ namespace mongo {
 
 namespace {
 
-/**
- * Test function to verify that the SortKeyGenerator can generate a sortKey from a fetched document.
- *
- * sortSpec - The JSON representation of the sort spec BSONObj.
- * doc - The JSON representation of the BSON document.
- *
- * Returns the BSON representation of the sort key, to be checked against the expected sort key.
- */
-BSONObj extractSortKey(const char* sortSpec, const char* doc) {
-    WorkingSetMember wsm;
-    wsm.obj = Snapshotted<BSONObj>(SnapshotId(), fromjson(doc));
-    wsm.transitionToOwnedObj();
+class SortKeyGeneratorTest : public mongo::unittest::Test {
+protected:
+    void setUp() {
+        _client = _serviceContext.makeClient("SortKeyGeneratorTest");
+        _opCtx = _client->makeOperationContext();
+    }
 
-    BSONObj sortKey;
-    auto sortKeyGen = stdx::make_unique<SortKeyGenerator>(fromjson(sortSpec), BSONObj());
-    ASSERT_OK(sortKeyGen->getSortKey(wsm, &sortKey));
+    OperationContext* txn() {
+        return _opCtx.get();
+    }
 
-    return sortKey;
-}
+    /**
+     * Test function to verify that the SortKeyGenerator can generate a sortKey from a fetched
+     *document.
+     *
+     * sortSpec - The JSON representation of the sort spec BSONObj.
+     * doc - The JSON representation of the BSON document.
+     *
+     * Returns the BSON representation of the sort key, to be checked against the expected sort key.
+     */
+    BSONObj extractSortKey(const char* sortSpec, const char* doc) {
+        WorkingSetMember wsm;
+        wsm.obj = Snapshotted<BSONObj>(SnapshotId(), fromjson(doc));
+        wsm.transitionToOwnedObj();
 
-/**
- * Test function to verify that the SortKeyGenerator can generate a sortKey while using only index
- * data (that is, the document will not be fetched). For SERVER-20117.
- *
- * sortSpec - The JSON representation of the sort spec BSONObj.
- * ikd - The data stored in the index.
- *
- * Returns the BSON representation of the sort key, to be checked against the expected sort key.
- */
-BSONObj extractSortKeyCovered(const char* sortSpec, const IndexKeyDatum& ikd) {
-    WorkingSet ws;
-    WorkingSetID wsid = ws.allocate();
-    WorkingSetMember* wsm = ws.get(wsid);
-    wsm->keyData.push_back(ikd);
-    ws.transitionToRecordIdAndIdx(wsid);
+        BSONObj sortKey;
+        auto sortKeyGen = stdx::make_unique<SortKeyGenerator>(txn(), fromjson(sortSpec), BSONObj());
+        ASSERT_OK(sortKeyGen->getSortKey(wsm, &sortKey));
 
-    BSONObj sortKey;
-    auto sortKeyGen = stdx::make_unique<SortKeyGenerator>(fromjson(sortSpec), BSONObj());
-    ASSERT_OK(sortKeyGen->getSortKey(*wsm, &sortKey));
+        return sortKey;
+    }
 
-    return sortKey;
-}
+    /**
+     * Test function to verify that the SortKeyGenerator can generate a sortKey while using only
+     *index
+     * data (that is, the document will not be fetched). For SERVER-20117.
+     *
+     * sortSpec - The JSON representation of the sort spec BSONObj.
+     * ikd - The data stored in the index.
+     *
+     * Returns the BSON representation of the sort key, to be checked against the expected sort key.
+     */
+    BSONObj extractSortKeyCovered(const char* sortSpec, const IndexKeyDatum& ikd) {
+        WorkingSet ws;
+        WorkingSetID wsid = ws.allocate();
+        WorkingSetMember* wsm = ws.get(wsid);
+        wsm->keyData.push_back(ikd);
+        ws.transitionToRecordIdAndIdx(wsid);
 
-TEST(SortKeyGeneratorTest, SortKeyNormal) {
+        BSONObj sortKey;
+        auto sortKeyGen = stdx::make_unique<SortKeyGenerator>(txn(), fromjson(sortSpec), BSONObj());
+        ASSERT_OK(sortKeyGen->getSortKey(*wsm, &sortKey));
+
+        return sortKey;
+    }
+
+private:
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _client;
+    ServiceContext::UniqueOperationContext _opCtx;
+};
+
+TEST_F(SortKeyGeneratorTest, SortKeyNormal) {
     BSONObj actualOut = extractSortKey("{a: 1}", "{_id: 0, a: 5}");
     BSONObj expectedOut = BSON("" << 5);
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyNormal2) {
+TEST_F(SortKeyGeneratorTest, SortKeyNormal2) {
     BSONObj actualOut = extractSortKey("{a: 1}", "{_id: 0, z: 10, a: 6, b: 16}");
     BSONObj expectedOut = BSON("" << 6);
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyString) {
+TEST_F(SortKeyGeneratorTest, SortKeyString) {
     BSONObj actualOut = extractSortKey("{a: 1}", "{_id: 0, z: 'thing1', a: 'thing2', b: 16}");
     BSONObj expectedOut = BSON(""
                                << "thing2");
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyCompound) {
+TEST_F(SortKeyGeneratorTest, SortKeyCompound) {
     BSONObj actualOut =
         extractSortKey("{a: 1, b: 1}", "{_id: 0, z: 'thing1', a: 99, c: {a: 4}, b: 16}");
     BSONObj expectedOut = BSON("" << 99 << "" << 16);
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyEmbedded) {
+TEST_F(SortKeyGeneratorTest, SortKeyEmbedded) {
     BSONObj actualOut =
         extractSortKey("{'c.a': 1, b: 1}", "{_id: 0, z: 'thing1', a: 99, c: {a: 4}, b: 16}");
     BSONObj expectedOut = BSON("" << 4 << "" << 16);
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyArray) {
+TEST_F(SortKeyGeneratorTest, SortKeyArray) {
     BSONObj actualOut =
         extractSortKey("{'c': 1, b: 1}", "{_id: 0, z: 'thing1', a: 99, c: [2, 4, 1], b: 16}");
     BSONObj expectedOut = BSON("" << 1 << "" << 16);
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyCoveredNormal) {
+TEST_F(SortKeyGeneratorTest, SortKeyCoveredNormal) {
     BSONObj actualOut =
         extractSortKeyCovered("{a: 1}", IndexKeyDatum(BSON("a" << 1), BSON("" << 5), nullptr));
     BSONObj expectedOut = BSON("" << 5);
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyCoveredEmbedded) {
+TEST_F(SortKeyGeneratorTest, SortKeyCoveredEmbedded) {
     BSONObj actualOut = extractSortKeyCovered(
         "{'a.c': 1}",
         IndexKeyDatum(BSON("a.c" << 1 << "c" << 1), BSON("" << 5 << "" << 6), nullptr));
@@ -135,7 +156,7 @@ TEST(SortKeyGeneratorTest, SortKeyCoveredEmbedded) {
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyCoveredCompound) {
+TEST_F(SortKeyGeneratorTest, SortKeyCoveredCompound) {
     BSONObj actualOut = extractSortKeyCovered(
         "{a: 1, c: 1}",
         IndexKeyDatum(BSON("a" << 1 << "c" << 1), BSON("" << 5 << "" << 6), nullptr));
@@ -143,7 +164,7 @@ TEST(SortKeyGeneratorTest, SortKeyCoveredCompound) {
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyCoveredCompound2) {
+TEST_F(SortKeyGeneratorTest, SortKeyCoveredCompound2) {
     BSONObj actualOut = extractSortKeyCovered("{a: 1, b: 1}",
                                               IndexKeyDatum(BSON("a" << 1 << "b" << 1 << "c" << 1),
                                                             BSON("" << 5 << "" << 6 << "" << 4),
@@ -152,7 +173,7 @@ TEST(SortKeyGeneratorTest, SortKeyCoveredCompound2) {
     ASSERT_EQ(actualOut, expectedOut);
 }
 
-TEST(SortKeyGeneratorTest, SortKeyCoveredCompound3) {
+TEST_F(SortKeyGeneratorTest, SortKeyCoveredCompound3) {
     BSONObj actualOut =
         extractSortKeyCovered("{b: 1, c: 1}",
                               IndexKeyDatum(BSON("a" << 1 << "b" << 1 << "c" << 1 << "d" << 1),

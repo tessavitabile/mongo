@@ -38,6 +38,8 @@
 
 namespace mongo {
 
+class OperationContext;
+
 class CanonicalQuery {
 public:
     /**
@@ -47,7 +49,9 @@ public:
      * Used for legacy find through the OP_QUERY message.
      */
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
-        const QueryMessage& qm, const ExtensionsCallback& extensionsCallback);
+        OperationContext* txn,
+        const QueryMessage& qm,
+        const ExtensionsCallback& extensionsCallback);
 
     /**
      * Takes ownership of 'lpq'.
@@ -57,7 +61,8 @@ public:
      *
      * Used for finds using the find command path.
      */
-    static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(LiteParsedQuery* lpq,
+    static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(OperationContext* txn,
+                                                                    LiteParsedQuery* lpq,
                                                                     const ExtensionsCallback&);
 
     /**
@@ -72,20 +77,26 @@ public:
      * Does not take ownership of 'root'.
      */
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
+        OperationContext* txn,
         const CanonicalQuery& baseQuery,
         MatchExpression* root,
         const ExtensionsCallback& extensionsCallback);
 
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
-        NamespaceString nss, const BSONObj& query, const ExtensionsCallback& extensionsCallback);
+        OperationContext* txn,
+        NamespaceString nss,
+        const BSONObj& query,
+        const ExtensionsCallback& extensionsCallback);
 
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
+        OperationContext* txn,
         NamespaceString nss,
         const BSONObj& query,
         bool explain,
         const ExtensionsCallback& extensionsCallback);
 
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
+        OperationContext* txn,
         NamespaceString nss,
         const BSONObj& query,
         long long skip,
@@ -93,6 +104,7 @@ public:
         const ExtensionsCallback& extensionsCallback);
 
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
+        OperationContext* txn,
         NamespaceString nss,
         const BSONObj& query,
         const BSONObj& sort,
@@ -100,6 +112,7 @@ public:
         const ExtensionsCallback& extensionsCallback);
 
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
+        OperationContext* txn,
         NamespaceString nss,
         const BSONObj& query,
         const BSONObj& sort,
@@ -109,6 +122,7 @@ public:
         const ExtensionsCallback& extensionsCallback);
 
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
+        OperationContext* txn,
         NamespaceString nss,
         const BSONObj& query,
         const BSONObj& sort,
@@ -119,6 +133,7 @@ public:
         const ExtensionsCallback& extensionsCallback);
 
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
+        OperationContext* txn,
         NamespaceString nss,
         const BSONObj& query,
         const BSONObj& sort,

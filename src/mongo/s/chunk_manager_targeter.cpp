@@ -109,8 +109,8 @@ UpdateType getUpdateExprType(const BSONObj& updateExpr) {
  *     { _id : { $lt : 30 } } => false
  *     { foo : <anything> } => false
  */
-bool isExactIdQuery(const BSONObj& query) {
-    StatusWith<BSONObj> status = virtualIdShardKey.extractShardKeyFromQuery(query);
+bool isExactIdQuery(OperationContext* txn, const BSONObj& query) {
+    StatusWith<BSONObj> status = virtualIdShardKey.extractShardKeyFromQuery(txn, query);
     if (!status.isOK()) {
         return false;
     }
@@ -371,7 +371,7 @@ Status ChunkManagerTargeter::targetUpdate(OperationContext* txn,
         if (updateType == UpdateType_OpStyle) {
             // Target using the query
             StatusWith<BSONObj> status =
-                _manager->getShardKeyPattern().extractShardKeyFromQuery(query);
+                _manager->getShardKeyPattern().extractShardKeyFromQuery(txn, query);
 
             // Bad query
             if (!status.isOK())
@@ -403,7 +403,8 @@ Status ChunkManagerTargeter::targetUpdate(OperationContext* txn,
         }
 
         // Validate that single (non-multi) sharded updates are targeted by shard key or _id
-        if (!updateDoc.getMulti() && shardKey.isEmpty() && !isExactIdQuery(updateDoc.getQuery())) {
+        if (!updateDoc.getMulti() && shardKey.isEmpty() &&
+            !isExactIdQuery(txn, updateDoc.getQuery())) {
             return Status(ErrorCodes::ShardKeyNotFound,
                           stream() << "update " << updateDoc.toBSON()
                                    << " does not contain _id or shard key for pattern "
@@ -440,7 +441,7 @@ Status ChunkManagerTargeter::targetDelete(OperationContext* txn,
 
         // Get the shard key
         StatusWith<BSONObj> status =
-            _manager->getShardKeyPattern().extractShardKeyFromQuery(deleteDoc.getQuery());
+            _manager->getShardKeyPattern().extractShardKeyFromQuery(txn, deleteDoc.getQuery());
 
         // Bad query
         if (!status.isOK())
@@ -450,7 +451,7 @@ Status ChunkManagerTargeter::targetDelete(OperationContext* txn,
 
         // Validate that single (limit-1) sharded deletes are targeted by shard key or _id
         if (deleteDoc.getLimit() == 1 && shardKey.isEmpty() &&
-            !isExactIdQuery(deleteDoc.getQuery())) {
+            !isExactIdQuery(txn, deleteDoc.getQuery())) {
             return Status(ErrorCodes::ShardKeyNotFound,
                           stream() << "delete " << deleteDoc.toBSON()
                                    << " does not contain _id or shard key for pattern "

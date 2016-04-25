@@ -27,8 +27,10 @@
 
 #include "mongo/s/shard_key_pattern.h"
 
+#include "mongo/db/client.h"
 #include "mongo/db/hasher.h"
 #include "mongo/db/json.h"
+#include "mongo/db/service_context_noop.h"
 #include "mongo/unittest/unittest.h"
 
 namespace {
@@ -37,7 +39,31 @@ using std::string;
 
 using namespace mongo;
 
-TEST(ShardKeyPattern, ValidShardKeyPatternSingle) {
+class ShardKeyPatternTest : public mongo::unittest::Test {
+protected:
+    void setUp() {
+        _client = _serviceContext.makeClient("ShardKeyPattern");
+        _opCtx = _client->makeOperationContext();
+    }
+
+    OperationContext* txn() {
+        return _opCtx.get();
+    }
+
+    BSONObj queryKey(const ShardKeyPattern& pattern, const BSONObj& query) {
+        StatusWith<BSONObj> status = pattern.extractShardKeyFromQuery(txn(), query);
+        if (!status.isOK())
+            return BSONObj();
+        return status.getValue();
+    }
+
+private:
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _client;
+    ServiceContext::UniqueOperationContext _opCtx;
+};
+
+TEST_F(ShardKeyPatternTest, ValidShardKeyPatternSingle) {
     BSONObj empty;
     ASSERT(!ShardKeyPattern(empty).isValid());
 
@@ -63,7 +89,7 @@ TEST(ShardKeyPattern, ValidShardKeyPatternSingle) {
     ASSERT(!ShardKeyPattern(BSON("." << 1)).isValid());
 }
 
-TEST(ShardKeyPattern, ValidShardKeyPatternComposite) {
+TEST_F(ShardKeyPatternTest, ValidShardKeyPatternComposite) {
     //
     // Composite ShardKeyPatterns
     //
@@ -79,7 +105,7 @@ TEST(ShardKeyPattern, ValidShardKeyPatternComposite) {
     ASSERT(!ShardKeyPattern(BSON("a" << 1 << "" << 1.0)).isValid());
 }
 
-TEST(ShardKeyPattern, ValidShardKeyPatternNested) {
+TEST_F(ShardKeyPatternTest, ValidShardKeyPatternNested) {
     //
     // Nested ShardKeyPatterns
     //
@@ -101,7 +127,7 @@ TEST(ShardKeyPattern, ValidShardKeyPatternNested) {
     ASSERT(!ShardKeyPattern(BSON("a" << BSON("b" << 1) << "c.d" << 1.0)).isValid());
 }
 
-TEST(ShardKeyPattern, IsShardKey) {
+TEST_F(ShardKeyPatternTest, IsShardKey) {
     ShardKeyPattern pattern(BSON("a.b" << 1 << "c" << 1.0f));
 
     ASSERT(pattern.isShardKey(BSON("a.b" << 10 << "c" << 30)));
@@ -116,7 +142,7 @@ static BSONObj normKey(const ShardKeyPattern& pattern, const BSONObj& doc) {
     return pattern.normalizeShardKey(doc);
 }
 
-TEST(ShardKeyPattern, NormalizeShardKey) {
+TEST_F(ShardKeyPatternTest, NormalizeShardKey) {
     ShardKeyPattern pattern(BSON("a.b" << 1 << "c" << 1.0f));
 
     ASSERT_EQUALS(normKey(pattern, BSON("a.b" << 10 << "c" << 30)), BSON("a.b" << 10 << "c" << 30));
@@ -131,7 +157,7 @@ static BSONObj docKey(const ShardKeyPattern& pattern, const BSONObj& doc) {
     return pattern.extractShardKeyFromDoc(doc);
 }
 
-TEST(ShardKeyPattern, ExtractDocShardKeySingle) {
+TEST_F(ShardKeyPatternTest, ExtractDocShardKeySingle) {
     //
     // Single field ShardKeyPatterns
     //
@@ -160,7 +186,7 @@ TEST(ShardKeyPattern, ExtractDocShardKeySingle) {
     // ASSERT_EQUALS(docKey(pattern, BSON("a" << 10 << "a" << 20)), BSONObj());
 }
 
-TEST(ShardKeyPattern, ExtractDocShardKeyCompound) {
+TEST_F(ShardKeyPatternTest, ExtractDocShardKeyCompound) {
     //
     // Compound ShardKeyPatterns
     //
@@ -187,7 +213,7 @@ TEST(ShardKeyPattern, ExtractDocShardKeyCompound) {
     ASSERT_EQUALS(docKey(pattern, BSON("b" << 20 << "a" << 10)).firstElement().numberInt(), 10);
 }
 
-TEST(ShardKeyPattern, ExtractDocShardKeyNested) {
+TEST_F(ShardKeyPatternTest, ExtractDocShardKeyNested) {
     //
     // Nested ShardKeyPatterns
     //
@@ -208,7 +234,7 @@ TEST(ShardKeyPattern, ExtractDocShardKeyNested) {
     ASSERT_EQUALS(docKey(pattern, fromjson("{a:{b:[10, 20]}, c:30}")), BSONObj());
 }
 
-TEST(ShardKeyPattern, ExtractDocShardKeyDeepNested) {
+TEST_F(ShardKeyPatternTest, ExtractDocShardKeyDeepNested) {
     //
     // Deeply nested ShardKeyPatterns
     //
@@ -225,7 +251,7 @@ TEST(ShardKeyPattern, ExtractDocShardKeyDeepNested) {
                   BSONObj());
 }
 
-TEST(ShardKeyPattern, ExtractDocShardKeyHashed) {
+TEST_F(ShardKeyPatternTest, ExtractDocShardKeyHashed) {
     //
     // Hashed ShardKeyPattern
     //
@@ -248,14 +274,7 @@ TEST(ShardKeyPattern, ExtractDocShardKeyHashed) {
     ASSERT_EQUALS(docKey(pattern, BSON("a" << BSON_ARRAY(BSON("b" << value)))), BSONObj());
 }
 
-static BSONObj queryKey(const ShardKeyPattern& pattern, const BSONObj& query) {
-    StatusWith<BSONObj> status = pattern.extractShardKeyFromQuery(query);
-    if (!status.isOK())
-        return BSONObj();
-    return status.getValue();
-}
-
-TEST(ShardKeyPattern, ExtractQueryShardKeySingle) {
+TEST_F(ShardKeyPatternTest, ExtractQueryShardKeySingle) {
     //
     // Single field ShardKeyPatterns
     //
@@ -291,7 +310,7 @@ TEST(ShardKeyPattern, ExtractQueryShardKeySingle) {
                   BSONObj());
 }
 
-TEST(ShardKeyPattern, ExtractQueryShardKeyCompound) {
+TEST_F(ShardKeyPatternTest, ExtractQueryShardKeyCompound) {
     //
     // Compound ShardKeyPatterns
     //
@@ -327,7 +346,7 @@ TEST(ShardKeyPattern, ExtractQueryShardKeyCompound) {
     ASSERT_EQUALS(queryKey(pattern, BSON("b" << 20 << "a" << 10)).firstElement().numberInt(), 10);
 }
 
-TEST(ShardKeyPattern, ExtractQueryShardKeyNested) {
+TEST_F(ShardKeyPatternTest, ExtractQueryShardKeyNested) {
     //
     // Nested ShardKeyPatterns
     //
@@ -357,7 +376,7 @@ TEST(ShardKeyPattern, ExtractQueryShardKeyNested) {
     ASSERT_EQUALS(queryKey(pattern, fromjson("{a:{b:{$eq:[10, 20]}}, c:30}")), BSONObj());
 }
 
-TEST(ShardKeyPattern, ExtractQueryShardKeyDeepNested) {
+TEST_F(ShardKeyPatternTest, ExtractQueryShardKeyDeepNested) {
     //
     // Deeply nested ShardKeyPatterns
     //
@@ -379,7 +398,7 @@ TEST(ShardKeyPattern, ExtractQueryShardKeyDeepNested) {
                   BSONObj());
 }
 
-TEST(ShardKeyPattern, ExtractQueryShardKeyHashed) {
+TEST_F(ShardKeyPatternTest, ExtractQueryShardKeyHashed) {
     //
     // Hashed ShardKeyPattern
     //
@@ -414,7 +433,7 @@ static bool indexComp(const ShardKeyPattern& pattern, const BSONObj& indexPatter
     return pattern.isUniqueIndexCompatible(indexPattern);
 }
 
-TEST(ShardKeyPattern, UniqueIndexCompatibleSingle) {
+TEST_F(ShardKeyPatternTest, UniqueIndexCompatibleSingle) {
     //
     // Single field ShardKeyPatterns
     //
@@ -432,7 +451,7 @@ TEST(ShardKeyPattern, UniqueIndexCompatibleSingle) {
     ASSERT(!indexComp(pattern, BSON("b" << -1 << "a" << 1)));
 }
 
-TEST(ShardKeyPattern, UniqueIndexCompatibleCompound) {
+TEST_F(ShardKeyPatternTest, UniqueIndexCompatibleCompound) {
     //
     // Compound ShardKeyPatterns
     //
@@ -451,7 +470,7 @@ TEST(ShardKeyPattern, UniqueIndexCompatibleCompound) {
     ASSERT(!indexComp(pattern, BSON("b" << -1 << "a" << 1 << "c" << 1)));
 }
 
-TEST(ShardKeyPattern, UniqueIndexCompatibleNested) {
+TEST_F(ShardKeyPatternTest, UniqueIndexCompatibleNested) {
     //
     // Nested ShardKeyPatterns
     //
@@ -464,7 +483,7 @@ TEST(ShardKeyPattern, UniqueIndexCompatibleNested) {
     ASSERT(!indexComp(pattern, BSON("c" << -1 << "a.b" << 1)));
 }
 
-TEST(ShardKeyPattern, UniqueIndexCompatibleHashed) {
+TEST_F(ShardKeyPatternTest, UniqueIndexCompatibleHashed) {
     //
     // Hashed ShardKeyPatterns
     //

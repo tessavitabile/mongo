@@ -88,7 +88,7 @@ protected:
 
         OldClientWriteContext ctx(&_opCtx, nss.ns());
         auto cq = uassertStatusOK(CanonicalQuery::canonicalize(
-            nss, /*query=*/BSONObj(), ExtensionsCallbackDisallowExtensions()));
+            &_opCtx, nss, /*query=*/BSONObj(), ExtensionsCallbackDisallowExtensions()));
         _exec = uassertStatusOK(
             getExecutor(&_opCtx, ctx.getCollection(), std::move(cq), PlanExecutor::YIELD_MANUAL));
 

@@ -34,11 +34,13 @@
 #include <vector>
 
 #include "mongo/base/owned_pointer_vector.h"
+#include "mongo/db/client.h"
 #include "mongo/db/index/multikey_paths.h"
 #include "mongo/db/jsobj.h"
 #include "mongo/db/json.h"
 #include "mongo/db/query/collation/collator_interface.h"
 #include "mongo/db/query/query_solution.h"
+#include "mongo/db/service_context_noop.h"
 #include "mongo/unittest/unittest.h"
 
 namespace mongo {
@@ -186,6 +188,8 @@ protected:
      */
     void assertHasOneSolutionOf(const std::vector<std::string>& solnStrs) const;
 
+    OperationContext* txn();
+
     /**
      * Helper function to parse a MatchExpression.
      */
@@ -201,6 +205,9 @@ protected:
     std::unique_ptr<CanonicalQuery> cq;
     QueryPlannerParams params;
     OwnedPointerVector<QuerySolution> solns;
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _client;
+    ServiceContext::UniqueOperationContext _opCtx;
 };
 
 }  // namespace mongo

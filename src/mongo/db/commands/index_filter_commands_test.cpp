@@ -33,11 +33,13 @@
 #include "mongo/db/commands/index_filter_commands.h"
 
 
+#include "mongo/db/client.h"
 #include "mongo/db/json.h"
 #include "mongo/db/matcher/extensions_callback_disallow_extensions.h"
 #include "mongo/db/operation_context_noop.h"
 #include "mongo/db/query/plan_ranker.h"
 #include "mongo/db/query/query_solution.h"
+#include "mongo/db/service_context_noop.h"
 #include "mongo/unittest/unittest.h"
 
 using namespace mongo;
@@ -109,82 +111,100 @@ PlanRankingDecision* createDecision(size_t numPlans) {
     return why.release();
 }
 
-/**
- * Injects an entry into plan cache for query shape.
- */
-void addQueryShapeToPlanCache(PlanCache* planCache,
-                              const char* queryStr,
-                              const char* sortStr,
-                              const char* projectionStr) {
-    BSONObj queryObj = fromjson(queryStr);
-    BSONObj sortObj = fromjson(sortStr);
-    BSONObj projectionObj = fromjson(projectionStr);
-
-    // Create canonical query.
-    auto statusWithCQ = CanonicalQuery::canonicalize(
-        nss, queryObj, sortObj, projectionObj, ExtensionsCallbackDisallowExtensions());
-    ASSERT_OK(statusWithCQ.getStatus());
-    std::unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
-
-    QuerySolution qs;
-    qs.cacheData.reset(new SolutionCacheData());
-    qs.cacheData->tree.reset(new PlanCacheIndexTree());
-    std::vector<QuerySolution*> solns;
-    solns.push_back(&qs);
-    ASSERT_OK(planCache->add(*cq, solns, createDecision(1U)));
-}
-
-/**
- * Checks if plan cache contains query shape.
- */
-bool planCacheContains(const PlanCache& planCache,
-                       const char* queryStr,
-                       const char* sortStr,
-                       const char* projectionStr) {
-    BSONObj queryObj = fromjson(queryStr);
-    BSONObj sortObj = fromjson(sortStr);
-    BSONObj projectionObj = fromjson(projectionStr);
-
-    // Create canonical query.
-    auto statusWithInputQuery = CanonicalQuery::canonicalize(
-        nss, queryObj, sortObj, projectionObj, ExtensionsCallbackDisallowExtensions());
-    ASSERT_OK(statusWithInputQuery.getStatus());
-    unique_ptr<CanonicalQuery> inputQuery = std::move(statusWithInputQuery.getValue());
-
-    // Retrieve cache entries from plan cache.
-    vector<PlanCacheEntry*> entries = planCache.getAllEntries();
-
-    // Search keys.
-    bool found = false;
-    for (vector<PlanCacheEntry*>::const_iterator i = entries.begin(); i != entries.end(); i++) {
-        PlanCacheEntry* entry = *i;
-
-        // Canonicalizing query shape in cache entry to get cache key.
-        // Alternatively, we could add key to PlanCacheEntry but that would be used in one place
-        // only.
-        auto statusWithCurrentQuery =
-            CanonicalQuery::canonicalize(nss,
-                                         entry->query,
-                                         entry->sort,
-                                         entry->projection,
-                                         ExtensionsCallbackDisallowExtensions());
-        ASSERT_OK(statusWithCurrentQuery.getStatus());
-        unique_ptr<CanonicalQuery> currentQuery = std::move(statusWithCurrentQuery.getValue());
-
-        if (planCache.computeKey(*currentQuery) == planCache.computeKey(*inputQuery)) {
-            found = true;
-        }
-        // Release resources for cache entry after extracting key.
-        delete entry;
+class IndexFilterCommandsTest : public mongo::unittest::Test {
+protected:
+    void setUp() {
+        _client = _serviceContext.makeClient("IndexFilterCommandsTest");
+        _opCtx = _client->makeOperationContext();
     }
-    return found;
-}
+
+    OperationContext* txn() {
+        return _opCtx.get();
+    }
+
+    /**
+    * Injects an entry into plan cache for query shape.
+    */
+    void addQueryShapeToPlanCache(PlanCache* planCache,
+                                  const char* queryStr,
+                                  const char* sortStr,
+                                  const char* projectionStr) {
+        BSONObj queryObj = fromjson(queryStr);
+        BSONObj sortObj = fromjson(sortStr);
+        BSONObj projectionObj = fromjson(projectionStr);
+
+        // Create canonical query.
+        auto statusWithCQ = CanonicalQuery::canonicalize(
+            txn(), nss, queryObj, sortObj, projectionObj, ExtensionsCallbackDisallowExtensions());
+        ASSERT_OK(statusWithCQ.getStatus());
+        std::unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
+
+        QuerySolution qs;
+        qs.cacheData.reset(new SolutionCacheData());
+        qs.cacheData->tree.reset(new PlanCacheIndexTree());
+        std::vector<QuerySolution*> solns;
+        solns.push_back(&qs);
+        ASSERT_OK(planCache->add(*cq, solns, createDecision(1U)));
+    }
+
+    /**
+     * Checks if plan cache contains query shape.
+     */
+    bool planCacheContains(const PlanCache& planCache,
+                           const char* queryStr,
+                           const char* sortStr,
+                           const char* projectionStr) {
+        BSONObj queryObj = fromjson(queryStr);
+        BSONObj sortObj = fromjson(sortStr);
+        BSONObj projectionObj = fromjson(projectionStr);
+
+        // Create canonical query.
+        auto statusWithInputQuery = CanonicalQuery::canonicalize(
+            txn(), nss, queryObj, sortObj, projectionObj, ExtensionsCallbackDisallowExtensions());
+        ASSERT_OK(statusWithInputQuery.getStatus());
+        unique_ptr<CanonicalQuery> inputQuery = std::move(statusWithInputQuery.getValue());
+
+        // Retrieve cache entries from plan cache.
+        vector<PlanCacheEntry*> entries = planCache.getAllEntries();
+
+        // Search keys.
+        bool found = false;
+        for (vector<PlanCacheEntry*>::const_iterator i = entries.begin(); i != entries.end(); i++) {
+            PlanCacheEntry* entry = *i;
+
+            // Canonicalizing query shape in cache entry to get cache key.
+            // Alternatively, we could add key to PlanCacheEntry but that would be used in one place
+            // only.
+            auto statusWithCurrentQuery =
+                CanonicalQuery::canonicalize(txn(),
+                                             nss,
+                                             entry->query,
+                                             entry->sort,
+                                             entry->projection,
+                                             ExtensionsCallbackDisallowExtensions());
+            ASSERT_OK(statusWithCurrentQuery.getStatus());
+            unique_ptr<CanonicalQuery> currentQuery = std::move(statusWithCurrentQuery.getValue());
+
+            if (planCache.computeKey(*currentQuery) == planCache.computeKey(*inputQuery)) {
+                found = true;
+            }
+            // Release resources for cache entry after extracting key.
+            delete entry;
+        }
+        return found;
+    }
+
+private:
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _client;
+    ServiceContext::UniqueOperationContext _opCtx;
+};
 
 /**
  * Tests for ListFilters
  */
 
-TEST(IndexFilterCommandsTest, ListFiltersEmpty) {
+TEST_F(IndexFilterCommandsTest, ListFiltersEmpty) {
     QuerySettings empty;
     vector<BSONObj> filters = getFilters(empty);
     ASSERT_TRUE(filters.empty());
@@ -194,7 +214,7 @@ TEST(IndexFilterCommandsTest, ListFiltersEmpty) {
  * Tests for ClearFilters
  */
 
-TEST(IndexFilterCommandsTest, ClearFiltersInvalidParameter) {
+TEST_F(IndexFilterCommandsTest, ClearFiltersInvalidParameter) {
     QuerySettings empty;
     PlanCache planCache;
     OperationContextNoop txn;
@@ -219,7 +239,7 @@ TEST(IndexFilterCommandsTest, ClearFiltersInvalidParameter) {
         &txn, &empty, &planCache, nss.ns(), fromjson("{projection: {_id: 0, a: 1}}")));
 }
 
-TEST(IndexFilterCommandsTest, ClearNonexistentHint) {
+TEST_F(IndexFilterCommandsTest, ClearNonexistentHint) {
     QuerySettings querySettings;
     PlanCache planCache;
     OperationContextNoop txn;
@@ -244,7 +264,7 @@ TEST(IndexFilterCommandsTest, ClearNonexistentHint) {
  * Tests for SetFilter
  */
 
-TEST(IndexFilterCommandsTest, SetFilterInvalidParameter) {
+TEST_F(IndexFilterCommandsTest, SetFilterInvalidParameter) {
     QuerySettings empty;
     PlanCache planCache;
     OperationContextNoop txn;
@@ -293,7 +313,7 @@ TEST(IndexFilterCommandsTest, SetFilterInvalidParameter) {
                        fromjson("{query: {a: {$no_such_op: 1}}, indexes: [{a: 1}, {b: 1}]}")));
 }
 
-TEST(IndexFilterCommandsTest, SetAndClearFilters) {
+TEST_F(IndexFilterCommandsTest, SetAndClearFilters) {
     QuerySettings querySettings;
     PlanCache planCache;
     OperationContextNoop txn;

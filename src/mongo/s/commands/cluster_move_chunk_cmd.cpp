@@ -169,7 +169,8 @@ public:
         shared_ptr<Chunk> chunk;
 
         if (!find.isEmpty()) {
-            StatusWith<BSONObj> status = info->getShardKeyPattern().extractShardKeyFromQuery(find);
+            StatusWith<BSONObj> status =
+                info->getShardKeyPattern().extractShardKeyFromQuery(txn, find);
 
             // Bad query
             if (!status.isOK())

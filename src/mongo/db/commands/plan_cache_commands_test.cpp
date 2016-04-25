@@ -34,11 +34,13 @@
 
 #include <algorithm>
 
+#include "mongo/db/client.h"
 #include "mongo/db/json.h"
 #include "mongo/db/matcher/extensions_callback_disallow_extensions.h"
 #include "mongo/db/operation_context_noop.h"
 #include "mongo/db/query/plan_ranker.h"
 #include "mongo/db/query/query_solution.h"
+#include "mongo/db/service_context_noop.h"
 #include "mongo/unittest/unittest.h"
 #include "mongo/util/mongoutils/str.h"
 
@@ -118,16 +120,33 @@ PlanRankingDecision* createDecision(size_t numPlans) {
     return why.release();
 }
 
-TEST(PlanCacheCommandsTest, planCacheListQueryShapesEmpty) {
+class PlanCacheCommandsTest : public mongo::unittest::Test {
+protected:
+    void setUp() {
+        _client = _serviceContext.makeClient("PlanCacheCommandsTest");
+        _opCtx = _client->makeOperationContext();
+    }
+
+    OperationContext* txn() {
+        return _opCtx.get();
+    }
+
+private:
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _client;
+    ServiceContext::UniqueOperationContext _opCtx;
+};
+
+TEST_F(PlanCacheCommandsTest, planCacheListQueryShapesEmpty) {
     PlanCache empty;
     vector<BSONObj> shapes = getShapes(empty);
     ASSERT_TRUE(shapes.empty());
 }
 
-TEST(PlanCacheCommandsTest, planCacheListQueryShapesOneKey) {
+TEST_F(PlanCacheCommandsTest, planCacheListQueryShapesOneKey) {
     // Create a canonical query
     auto statusWithCQ = CanonicalQuery::canonicalize(
-        nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
+        txn(), nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 
@@ -150,10 +169,10 @@ TEST(PlanCacheCommandsTest, planCacheListQueryShapesOneKey) {
  * Tests for planCacheClear
  */
 
-TEST(PlanCacheCommandsTest, planCacheClearAllShapes) {
+TEST_F(PlanCacheCommandsTest, planCacheClearAllShapes) {
     // Create a canonical query
     auto statusWithCQ = CanonicalQuery::canonicalize(
-        nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
+        txn(), nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 
@@ -178,7 +197,7 @@ TEST(PlanCacheCommandsTest, planCacheClearAllShapes) {
  * Mostly validation on the input parameters
  */
 
-TEST(PlanCacheCommandsTest, Canonicalize) {
+TEST_F(PlanCacheCommandsTest, Canonicalize) {
     // Invalid parameters
     PlanCache planCache;
     OperationContextNoop txn;
@@ -242,7 +261,7 @@ TEST(PlanCacheCommandsTest, Canonicalize) {
  * Tests for planCacheClear (single query shape)
  */
 
-TEST(PlanCacheCommandsTest, planCacheClearInvalidParameter) {
+TEST_F(PlanCacheCommandsTest, planCacheClearInvalidParameter) {
     PlanCache planCache;
     OperationContextNoop txn;
 
@@ -260,21 +279,21 @@ TEST(PlanCacheCommandsTest, planCacheClearInvalidParameter) {
         &txn, &planCache, nss.ns(), fromjson("{projection: {_id: 0, a: 1}}")));
 }
 
-TEST(PlanCacheCommandsTest, planCacheClearUnknownKey) {
+TEST_F(PlanCacheCommandsTest, planCacheClearUnknownKey) {
     PlanCache planCache;
     OperationContextNoop txn;
 
     ASSERT_OK(PlanCacheClear::clear(&txn, &planCache, nss.ns(), fromjson("{query: {a: 1}}")));
 }
 
-TEST(PlanCacheCommandsTest, planCacheClearOneKey) {
+TEST_F(PlanCacheCommandsTest, planCacheClearOneKey) {
     // Create 2 canonical queries.
     auto statusWithCQA = CanonicalQuery::canonicalize(
-        nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
+        txn(), nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithCQA.getStatus());
     unique_ptr<CanonicalQuery> cqA = std::move(statusWithCQA.getValue());
     auto statusWithCQB = CanonicalQuery::canonicalize(
-        nss, fromjson("{b: 1}"), ExtensionsCallbackDisallowExtensions());
+        txn(), nss, fromjson("{b: 1}"), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithCQB.getStatus());
     unique_ptr<CanonicalQuery> cqB = std::move(statusWithCQB.getValue());
 
@@ -367,7 +386,7 @@ vector<BSONObj> getPlans(const PlanCache& planCache,
     return plans;
 }
 
-TEST(PlanCacheCommandsTest, planCacheListPlansInvalidParameter) {
+TEST_F(PlanCacheCommandsTest, planCacheListPlansInvalidParameter) {
     PlanCache planCache;
     BSONObjBuilder ignored;
     OperationContextNoop txn;
@@ -381,7 +400,7 @@ TEST(PlanCacheCommandsTest, planCacheListPlansInvalidParameter) {
         &txn, planCache, nss.ns(), fromjson("{query: /keyisnotregex/}"), &ignored));
 }
 
-TEST(PlanCacheCommandsTest, planCacheListPlansUnknownKey) {
+TEST_F(PlanCacheCommandsTest, planCacheListPlansUnknownKey) {
     // Leave the plan cache empty.
     PlanCache planCache;
     OperationContextNoop txn;
@@ -391,10 +410,10 @@ TEST(PlanCacheCommandsTest, planCacheListPlansUnknownKey) {
         PlanCacheListPlans::list(&txn, planCache, nss.ns(), fromjson("{query: {a: 1}}"), &ignored));
 }
 
-TEST(PlanCacheCommandsTest, planCacheListPlansOnlyOneSolutionTrue) {
+TEST_F(PlanCacheCommandsTest, planCacheListPlansOnlyOneSolutionTrue) {
     // Create a canonical query
     auto statusWithCQ = CanonicalQuery::canonicalize(
-        nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
+        txn(), nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 
@@ -411,10 +430,10 @@ TEST(PlanCacheCommandsTest, planCacheListPlansOnlyOneSolutionTrue) {
     ASSERT_EQUALS(plans.size(), 1U);
 }
 
-TEST(PlanCacheCommandsTest, planCacheListPlansOnlyOneSolutionFalse) {
+TEST_F(PlanCacheCommandsTest, planCacheListPlansOnlyOneSolutionFalse) {
     // Create a canonical query
     auto statusWithCQ = CanonicalQuery::canonicalize(
-        nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
+        txn(), nss, fromjson("{a: 1}"), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 

@@ -50,6 +50,8 @@ using unittest::assertGet;
 const NamespaceString QueryPlannerTest::nss("test.collection");
 
 void QueryPlannerTest::setUp() {
+    _client = _serviceContext.makeClient("CanonicalQueryTest");
+    _opCtx = _client->makeOperationContext();
     internalQueryPlannerEnableHashIntersection = true;
     params.options = QueryPlannerParams::INCLUDE_COLLSCAN;
     addIndex(BSON("_id" << 1));
@@ -199,7 +201,8 @@ void QueryPlannerTest::runQueryFull(const BSONObj& query,
     solns.clear();
     cq.reset();
 
-    auto statusWithCQ = CanonicalQuery::canonicalize(nss,
+    auto statusWithCQ = CanonicalQuery::canonicalize(txn(),
+                                                     nss,
                                                      query,
                                                      sort,
                                                      proj,
@@ -267,7 +270,8 @@ void QueryPlannerTest::runInvalidQueryFull(const BSONObj& query,
     solns.clear();
     cq.reset();
 
-    auto statusWithCQ = CanonicalQuery::canonicalize(nss,
+    auto statusWithCQ = CanonicalQuery::canonicalize(txn(),
+                                                     nss,
                                                      query,
                                                      sort,
                                                      proj,
@@ -296,7 +300,8 @@ void QueryPlannerTest::runQueryAsCommand(const BSONObj& cmdObj) {
     std::unique_ptr<LiteParsedQuery> lpq(
         assertGet(LiteParsedQuery::makeFromFindCommand(nss, cmdObj, isExplain)));
 
-    auto statusWithCQ = CanonicalQuery::canonicalize(lpq.release(), ExtensionsCallbackNoop());
+    auto statusWithCQ =
+        CanonicalQuery::canonicalize(txn(), lpq.release(), ExtensionsCallbackNoop());
     ASSERT_OK(statusWithCQ.getStatus());
     cq = std::move(statusWithCQ.getValue());
 
@@ -382,6 +387,10 @@ std::unique_ptr<MatchExpression> QueryPlannerTest::parseMatchExpression(const BS
                            << ". Reason: " << status.getStatus().toString());
     }
     return std::move(status.getValue());
+}
+
+OperationContext* QueryPlannerTest::txn() {
+    return _opCtx.get();
 }
 
 }  // namespace mongo

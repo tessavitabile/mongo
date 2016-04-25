@@ -65,6 +65,10 @@ public:
         _client.insert(nss.ns(), doc);
     }
 
+    OperationContext* txn() {
+        return &_txn;
+    }
+
 protected:
     /**
      * Parses the json string 'findCmd', specifying a find command, to a CanonicalQuery.
@@ -77,7 +81,7 @@ protected:
             unittest::assertGet(LiteParsedQuery::makeFromFindCommand(nss, cmdObj, isExplain));
 
         auto cq = unittest::assertGet(
-            CanonicalQuery::canonicalize(lpq.release(), ExtensionsCallbackNoop()));
+            CanonicalQuery::canonicalize(txn(), lpq.release(), ExtensionsCallbackNoop()));
         return cq;
     }
 
@@ -108,7 +112,7 @@ public:
             "{a: {$geoWithin: {$centerSphere: [[1,1],10]}}}]}");
 
         auto statusWithCQ =
-            CanonicalQuery::canonicalize(nss, query, ExtensionsCallbackDisallowExtensions());
+            CanonicalQuery::canonicalize(txn(), nss, query, ExtensionsCallbackDisallowExtensions());
         ASSERT_OK(statusWithCQ.getStatus());
         std::unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 
@@ -152,7 +156,7 @@ public:
         Collection* collection = ctx.getCollection();
 
         auto statusWithCQ =
-            CanonicalQuery::canonicalize(nss, query, ExtensionsCallbackDisallowExtensions());
+            CanonicalQuery::canonicalize(txn(), nss, query, ExtensionsCallbackDisallowExtensions());
         ASSERT_OK(statusWithCQ.getStatus());
         std::unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 
@@ -208,7 +212,7 @@ public:
         Collection* collection = ctx.getCollection();
 
         auto statusWithCQ =
-            CanonicalQuery::canonicalize(nss, query, ExtensionsCallbackDisallowExtensions());
+            CanonicalQuery::canonicalize(txn(), nss, query, ExtensionsCallbackDisallowExtensions());
         ASSERT_OK(statusWithCQ.getStatus());
         std::unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 
@@ -265,7 +269,7 @@ public:
         Collection* collection = ctx.getCollection();
 
         auto statusWithCQ =
-            CanonicalQuery::canonicalize(nss, query, ExtensionsCallbackDisallowExtensions());
+            CanonicalQuery::canonicalize(txn(), nss, query, ExtensionsCallbackDisallowExtensions());
         ASSERT_OK(statusWithCQ.getStatus());
         std::unique_ptr<CanonicalQuery> cq = std::move(statusWithCQ.getValue());
 
@@ -518,8 +522,8 @@ public:
         insert(BSON("_id" << 3 << "a" << 1 << "c" << 3));
         insert(BSON("_id" << 4 << "a" << 1 << "c" << 4));
 
-        auto cq = unittest::assertGet(
-            CanonicalQuery::canonicalize(nss, query, ExtensionsCallbackDisallowExtensions()));
+        auto cq = unittest::assertGet(CanonicalQuery::canonicalize(
+            txn(), nss, query, ExtensionsCallbackDisallowExtensions()));
 
         Collection* collection = ctx.getCollection();
 
@@ -579,7 +583,7 @@ public:
         BSONObj sort = BSON("d" << 1);
         BSONObj projection;
         auto cq = unittest::assertGet(CanonicalQuery::canonicalize(
-            nss, query, sort, projection, ExtensionsCallbackDisallowExtensions()));
+            txn(), nss, query, sort, projection, ExtensionsCallbackDisallowExtensions()));
 
         Collection* collection = ctx.getCollection();
 
