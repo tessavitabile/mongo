@@ -80,9 +80,10 @@ TEST(S2KeyGeneratorTest, CollationAppliedToNonGeoStringFields) {
     BSONObj infoObj = fromjson("{key: {a: '2dsphere', b: 1}, '2dsphereIndexVersion': 3}");
     S2IndexingParams params;
     ExpressionParams::parse2dsphereParams(infoObj, &params);
-    BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys, &collator);
+    params.collator = &collator;
+    BSONObjSet actualKeys;
+    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys);
 
     BSONObjSet expectedKeys;
     expectedKeys.insert(BSON("" << originCellId << ""
@@ -97,9 +98,10 @@ TEST(S2KeyGeneratorTest, CollationAppliedToStringsInArray) {
     BSONObj infoObj = fromjson("{key: {a: '2dsphere', b: 1}, '2dsphereIndexVersion': 3}");
     S2IndexingParams params;
     ExpressionParams::parse2dsphereParams(infoObj, &params);
-    BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys, &collator);
+    params.collator = &collator;
+    BSONObjSet actualKeys;
+    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys);
 
     BSONObjSet expectedKeys;
     expectedKeys.insert(BSON("" << originCellId << ""
@@ -116,9 +118,10 @@ TEST(S2KeyGeneratorTest, CollationDoesNotAffectNonStringFields) {
     BSONObj infoObj = fromjson("{key: {a: '2dsphere', b: 1}, '2dsphereIndexVersion': 3}");
     S2IndexingParams params;
     ExpressionParams::parse2dsphereParams(infoObj, &params);
-    BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys, &collator);
+    params.collator = &collator;
+    BSONObjSet actualKeys;
+    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys);
 
     BSONObjSet expectedKeys;
     expectedKeys.insert(BSON("" << originCellId << "" << 5));
@@ -133,9 +136,10 @@ TEST(S2KeyGeneratorTest, CollationDoesNotAffectStringsInEmbeddedDocuments) {
     BSONObj infoObj = fromjson("{key: {a: '2dsphere', b: 1}, '2dsphereIndexVersion': 3}");
     S2IndexingParams params;
     ExpressionParams::parse2dsphereParams(infoObj, &params);
-    BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys, &collator);
+    params.collator = &collator;
+    BSONObjSet actualKeys;
+    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys);
 
     BSONObjSet expectedKeys;
     expectedKeys.insert(BSON("" << originCellId << "" << BSON("c"
@@ -151,7 +155,7 @@ TEST(S2KeyGeneratorTest, NoCollation) {
     S2IndexingParams params;
     ExpressionParams::parse2dsphereParams(infoObj, &params);
     BSONObjSet actualKeys;
-    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys, nullptr);
+    ExpressionKeysPrivate::getS2Keys(obj, keyPattern, params, &actualKeys);
 
     BSONObjSet expectedKeys;
     expectedKeys.insert(BSON("" << originCellId << ""

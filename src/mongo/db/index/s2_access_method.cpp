@@ -77,7 +77,7 @@ S2AccessMethod::S2AccessMethod(IndexCatalogEntry* btreeState, SortedDataInterfac
                   << "\n";
     }
 
-    _collator = btreeState->getCollator();
+    _params.collator = btreeState->getCollator();
 }
 
 // static
@@ -105,7 +105,7 @@ BSONObj S2AccessMethod::fixSpec(const BSONObj& specObj) {
 }
 
 void S2AccessMethod::getKeys(const BSONObj& obj, BSONObjSet* keys) const {
-    ExpressionKeysPrivate::getS2Keys(obj, _descriptor->keyPattern(), _params, keys, _collator);
+    ExpressionKeysPrivate::getS2Keys(obj, _descriptor->keyPattern(), _params, keys);
 }
 
 }  // namespace mongo

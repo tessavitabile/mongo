@@ -54,17 +54,4 @@ void CollationIndexKey::collationAwareIndexKeyAppend(BSONElement elt,
     }
 }
 
-// TODO SERVER-23172: Update this to convert strings inside nested objects or arrays to their
-// corresponding comparison keys.
-void CollationIndexKey::collationAwareArrayAppend(BSONElement elt,
-                                                  CollatorInterface* collator,
-                                                  BSONArrayBuilder* out) {
-    if (shouldUseCollationIndexKey(elt, collator)) {
-        auto comparisonKey = collator->getComparisonKey(elt.valueStringData());
-        out->append(comparisonKey.getKeyData());
-    } else {
-        out->append(elt);
-    }
-}
-
 }  // namespace mongo

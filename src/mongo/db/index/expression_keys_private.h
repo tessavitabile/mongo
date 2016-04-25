@@ -60,8 +60,7 @@ public:
     static void get2DKeys(const BSONObj& obj,
                           const TwoDIndexingParams& params,
                           BSONObjSet* keys,
-                          std::vector<BSONObj>* locs,
-                          CollatorInterface* collator);
+                          std::vector<BSONObj>* locs);
 
     //
     // FTS
@@ -81,8 +80,8 @@ public:
                             HashSeed seed,
                             int hashVersion,
                             bool isSparse,
-                            BSONObjSet* keys,
-                            CollatorInterface* collator);
+                            CollatorInterface* collator,
+                            BSONObjSet* keys);
 
     /**
      * Hashing function used by both getHashKeys and the cursors we create.
@@ -126,8 +125,7 @@ public:
     static void getS2Keys(const BSONObj& obj,
                           const BSONObj& keyPattern,
                           const S2IndexingParams& params,
-                          BSONObjSet* keys,
-                          CollatorInterface* collator);
+                          BSONObjSet* keys);
 };
 
 }  // namespace mongo

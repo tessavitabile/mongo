@@ -67,6 +67,10 @@ bool assertKeysetsEqual(const BSONObjSet& expectedKeys, const BSONObjSet& actual
     return true;
 }
 
+BSONObj hashKey(const BSONElement& elt) {
+    return BSON("" << BSONElementHasher::hash64(elt, 0));
+}
+
 //
 // Unit tests
 //
@@ -75,11 +79,11 @@ TEST(HashKeyGeneratorTest, CollationAppliedBeforeHashing) {
     BSONObj obj = fromjson("{a: 'string'}");
     BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, &collator);
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &collator, &actualKeys);
 
     BSONObj backwardsObj = fromjson("{a: 'gnirts'}");
     BSONObjSet expectedKeys;
-    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(backwardsObj.getFieldDotted("a"), 0)));
+    expectedKeys.insert(hashKey(backwardsObj.getFieldDotted("a")));
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
@@ -88,10 +92,10 @@ TEST(HashKeyGeneratorTest, CollationDoesNotAffectNonStringFields) {
     BSONObj obj = fromjson("{a: 5}");
     BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, &collator);
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &collator, &actualKeys);
 
     BSONObjSet expectedKeys;
-    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(obj.getFieldDotted("a"), 0)));
+    expectedKeys.insert(hashKey(obj.getFieldDotted("a")));
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
@@ -101,10 +105,10 @@ TEST(HashKeyGeneratorTest, CollationDoesNotAffectStringsInEmbeddedDocuments) {
     BSONObj obj = fromjson("{a: {b: 'string'}}");
     BSONObjSet actualKeys;
     CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, &collator);
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &collator, &actualKeys);
 
     BSONObjSet expectedKeys;
-    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(obj.getFieldDotted("a"), 0)));
+    expectedKeys.insert(hashKey(obj.getFieldDotted("a")));
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
@@ -112,10 +116,10 @@ TEST(HashKeyGeneratorTest, CollationDoesNotAffectStringsInEmbeddedDocuments) {
 TEST(HashKeyGeneratorTest, NoCollation) {
     BSONObj obj = fromjson("{a: 'string'}");
     BSONObjSet actualKeys;
-    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, &actualKeys, nullptr);
+    ExpressionKeysPrivate::getHashKeys(obj, "a", 0, 0, false, nullptr, &actualKeys);
 
     BSONObjSet expectedKeys;
-    expectedKeys.insert(BSON("" << BSONElementHasher::hash64(obj.getFieldDotted("a"), 0)));
+    expectedKeys.insert(hashKey(obj.getFieldDotted("a")));
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }

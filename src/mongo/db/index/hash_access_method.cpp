@@ -53,7 +53,7 @@ HashAccessMethod::HashAccessMethod(IndexCatalogEntry* btreeState, SortedDataInte
 
 void HashAccessMethod::getKeys(const BSONObj& obj, BSONObjSet* keys) const {
     ExpressionKeysPrivate::getHashKeys(
-        obj, _hashedField, _seed, _hashVersion, _descriptor->isSparse(), keys, _collator);
+        obj, _hashedField, _seed, _hashVersion, _descriptor->isSparse(), _collator, keys);
 }
 
 }  // namespace mongo

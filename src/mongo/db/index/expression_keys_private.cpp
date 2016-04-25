@@ -149,7 +149,7 @@ void getS2GeoKeys(const BSONObj& document,
  * Expands array and appends items to 'out'.
  * Used by getOneLiteralKey.
  */
-void getS2LiteralKeysArray(const BSONObj& obj, BSONObjSet* out, CollatorInterface* collator) {
+void getS2LiteralKeysArray(const BSONObj& obj, CollatorInterface* collator, BSONObjSet* out) {
     BSONObjIterator objIt(obj);
     if (!objIt.more()) {
         // Empty arrays are indexed as undefined.
@@ -171,9 +171,9 @@ void getS2LiteralKeysArray(const BSONObj& obj, BSONObjSet* out, CollatorInterfac
  * Otherwise, adds 'elt' as a single element.
  * Used by getLiteralKeys.
  */
-void getS2OneLiteralKey(const BSONElement& elt, BSONObjSet* out, CollatorInterface* collator) {
+void getS2OneLiteralKey(const BSONElement& elt, CollatorInterface* collator, BSONObjSet* out) {
     if (Array == elt.type()) {
-        getS2LiteralKeysArray(elt.Obj(), out, collator);
+        getS2LiteralKeysArray(elt.Obj(), collator, out);
     } else {
         // One thing, not an array, index as-is.
         BSONObjBuilder b;
@@ -187,8 +187,8 @@ void getS2OneLiteralKey(const BSONElement& elt, BSONObjSet* out, CollatorInterfa
  * Used by getS2Keys.
  */
 void getS2LiteralKeys(const BSONElementSet& elements,
-                      BSONObjSet* out,
-                      CollatorInterface* collator) {
+                      CollatorInterface* collator,
+                      BSONObjSet* out) {
     if (0 == elements.size()) {
         // Missing fields are indexed as null.
         BSONObjBuilder b;
@@ -196,7 +196,7 @@ void getS2LiteralKeys(const BSONElementSet& elements,
         out->insert(b.obj());
     } else {
         for (BSONElementSet::iterator i = elements.begin(); i != elements.end(); ++i) {
-            getS2OneLiteralKey(*i, out, collator);
+            getS2OneLiteralKey(*i, collator, out);
         }
     }
 }
@@ -213,8 +213,7 @@ using std::vector;
 void ExpressionKeysPrivate::get2DKeys(const BSONObj& obj,
                                       const TwoDIndexingParams& params,
                                       BSONObjSet* keys,
-                                      std::vector<BSONObj>* locs,
-                                      CollatorInterface* collator) {
+                                      std::vector<BSONObj>* locs) {
     BSONElementMSet bSet;
 
     // Get all the nested location fields, but don't return individual elements from
@@ -280,8 +279,6 @@ void ExpressionKeysPrivate::get2DKeys(const BSONObj& obj,
                     continue;
             }
 
-            // obj is only used to print debugging information, so we need not convert its strings
-            // to collation keys.
             params.geoHashConverter->hash(locObj, &obj).appendHashMin(&b, "");
 
             // Go through all the other index keys
@@ -295,13 +292,13 @@ void ExpressionKeysPrivate::get2DKeys(const BSONObj& obj,
                 if (eSet.size() == 0)
                     b.appendNull("");
                 else if (eSet.size() == 1)
-                    CollationIndexKey::collationAwareIndexKeyAppend(*(eSet.begin()), collator, &b);
+                    b.appendAs(*(eSet.begin()), "");
                 else {
                     // If we have more than one key, store as an array of the objects
                     BSONArrayBuilder aBuilder;
 
                     for (BSONElementSet::iterator ei = eSet.begin(); ei != eSet.end(); ++ei) {
-                        CollationIndexKey::collationAwareArrayAppend(*ei, collator, &aBuilder);
+                        aBuilder.append(*ei);
                     }
 
                     b.append("", aBuilder.arr());
@@ -327,8 +324,8 @@ void ExpressionKeysPrivate::getHashKeys(const BSONObj& obj,
                                         HashSeed seed,
                                         int hashVersion,
                                         bool isSparse,
-                                        BSONObjSet* keys,
-                                        CollatorInterface* collator) {
+                                        CollatorInterface* collator,
+                                        BSONObjSet* keys) {
     const char* cstr = hashedField.c_str();
     BSONElement fieldVal = obj.getFieldDottedOrArray(cstr);
 
@@ -427,8 +424,7 @@ std::string ExpressionKeysPrivate::makeHaystackString(int hashedX, int hashedY) 
 void ExpressionKeysPrivate::getS2Keys(const BSONObj& obj,
                                       const BSONObj& keyPattern,
                                       const S2IndexingParams& params,
-                                      BSONObjSet* keys,
-                                      CollatorInterface* collator) {
+                                      BSONObjSet* keys) {
     BSONObjSet keysToAdd;
 
     // Does one of our documents have a geo field?
@@ -477,7 +473,7 @@ void ExpressionKeysPrivate::getS2Keys(const BSONObj& obj,
 
             getS2GeoKeys(obj, fieldElements, params, &keysForThisField);
         } else {
-            getS2LiteralKeys(fieldElements, &keysForThisField, collator);
+            getS2LiteralKeys(fieldElements, params.collator, &keysForThisField);
         }
 
         // We expect there to be the missing field element present in the keys if data is

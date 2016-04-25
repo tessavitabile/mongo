@@ -36,7 +36,6 @@
 #include "mongo/db/index/2d_common.h"
 #include "mongo/db/index/expression_params.h"
 #include "mongo/db/json.h"
-#include "mongo/db/query/collation/collator_interface_mock.h"
 #include "mongo/unittest/unittest.h"
 #include "mongo/util/log.h"
 
@@ -72,58 +71,14 @@ bool assertKeysetsEqual(const BSONObjSet& expectedKeys, const BSONObjSet& actual
 // Unit tests
 //
 
-TEST(2dKeyGeneratorTest, CollationAppliedToNonGeoStringFields) {
-    BSONObj obj = fromjson("{a: [0, 0], b: 'string'}");
-    BSONObj infoObj = fromjson("{key: {a: '2d', b: 1}}");
-    TwoDIndexingParams params;
-    ExpressionParams::parseTwoDParams(infoObj, &params);
-    BSONObjSet actualKeys;
-    std::vector<BSONObj> locs;
-    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs, &collator);
-
-    BSONObjSet expectedKeys;
-    BSONObj locObj = BSON("0" << 0 << "1" << 0);
-    BSONObjBuilder b;
-    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&b, "");
-    b.append("", "gnirts");
-    expectedKeys.insert(b.obj());
-
-    ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
-}
-
-TEST(2dKeyGeneratorTest, CollationAppliedToStringsInArray) {
-    BSONObj obj = fromjson("{a: [0, 0], b: ['string', 'string2']}");
-    BSONObj infoObj = fromjson("{key: {a: '2d', b: 1}}");
-    TwoDIndexingParams params;
-    ExpressionParams::parseTwoDParams(infoObj, &params);
-    BSONObjSet actualKeys;
-    std::vector<BSONObj> locs;
-    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs, &collator);
-
-    BSONObjSet expectedKeys;
-    BSONObj locObj = BSON("0" << 0 << "1" << 0);
-    BSONObjBuilder b;
-    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&b, "");
-    BSONArrayBuilder aBuilder;
-    aBuilder.append("gnirts");
-    aBuilder.append("2gnirts");
-    b.append("", aBuilder.arr());
-    expectedKeys.insert(b.obj());
-
-    ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
-}
-
-TEST(2dKeyGeneratorTest, CollationDoesNotAffectNonStringFields) {
+TEST(2dKeyGeneratorTest, TrailingField) {
     BSONObj obj = fromjson("{a: [0, 0], b: 5}");
     BSONObj infoObj = fromjson("{key: {a: '2d', b: 1}}");
     TwoDIndexingParams params;
     ExpressionParams::parseTwoDParams(infoObj, &params);
     BSONObjSet actualKeys;
     std::vector<BSONObj> locs;
-    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs, &collator);
+    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs);
 
     BSONObjSet expectedKeys;
     BSONObj locObj = BSON("0" << 0 << "1" << 0);
@@ -135,43 +90,45 @@ TEST(2dKeyGeneratorTest, CollationDoesNotAffectNonStringFields) {
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
 
-// TODO SERVER-23172: remove test
-TEST(2dKeyGeneratorTest, CollationDoesNotAffectStringsInEmbeddedDocuments) {
-    BSONObj obj = fromjson("{a: [0, 0], b: {c: 'string'}}");
+TEST(2dKeyGeneratorTest, ArrayTrailingField) {
+    BSONObj obj = fromjson("{a: [0, 0], b: [5, 6]}");
     BSONObj infoObj = fromjson("{key: {a: '2d', b: 1}}");
     TwoDIndexingParams params;
     ExpressionParams::parseTwoDParams(infoObj, &params);
     BSONObjSet actualKeys;
     std::vector<BSONObj> locs;
-    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
-    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs, &collator);
+    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs);
 
     BSONObjSet expectedKeys;
     BSONObj locObj = BSON("0" << 0 << "1" << 0);
     BSONObjBuilder b;
     params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&b, "");
-    b.append("",
-             BSON("c"
-                  << "string"));
+    BSONArrayBuilder aBuilder;
+    aBuilder.append(5);
+    aBuilder.append(6);
+    b.append("", aBuilder.arr());
     expectedKeys.insert(b.obj());
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
 
-TEST(2dKeyGeneratorTest, NoCollation) {
-    BSONObj obj = fromjson("{a: [0, 0], b: 'string'}");
-    BSONObj infoObj = fromjson("{key: {a: '2d', b: 1}}");
+TEST(2dKeyGeneratorTest, ArrayOfObjectsTrailingField) {
+    BSONObj obj = fromjson("{a: [0, 0], b: [{c: 5}, {c: 6}]}");
+    BSONObj infoObj = fromjson("{key: {a: '2d', 'b.c': 1}}");
     TwoDIndexingParams params;
     ExpressionParams::parseTwoDParams(infoObj, &params);
     BSONObjSet actualKeys;
     std::vector<BSONObj> locs;
-    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs, nullptr);
+    ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs);
 
     BSONObjSet expectedKeys;
     BSONObj locObj = BSON("0" << 0 << "1" << 0);
     BSONObjBuilder b;
     params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&b, "");
-    b.append("", "string");
+    BSONArrayBuilder aBuilder;
+    aBuilder.append(5);
+    aBuilder.append(6);
+    b.append("", aBuilder.arr());
     expectedKeys.insert(b.obj());
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
