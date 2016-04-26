@@ -34,6 +34,7 @@
 #include "mongo/db/matcher/extensions_callback_disallow_extensions.h"
 #include "mongo/db/matcher/extensions_callback_noop.h"
 #include "mongo/db/namespace_string.h"
+#include "mongo/db/query/collation/collator_factory_interface.h"
 #include "mongo/db/query/collation/collator_interface_mock.h"
 #include "mongo/db/query/index_tag.h"
 #include "mongo/db/service_context_noop.h"
@@ -690,6 +691,29 @@ TEST_F(CanonicalQueryTest, CanonicalizeFromBaseQuery) {
     ASSERT_EQ(childCq->getParsed().getSort(), baseCq->getParsed().getSort());
     ASSERT_TRUE(childCq->getParsed().isExplain());
 }
+
+TEST_F(CanonicalQueryTest, CanonicalizeFromLPQNullCollator) {
+    const bool isExplain = false;
+    const std::string cmdStr = "{find:'testcoll', filter: {}}";
+    auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(nss, fromjson(cmdStr), isExplain));
+    auto cq = assertGet(CanonicalQuery::canonicalize(txn(), lpq.release(), ExtensionsCallbackDisallowExtensions()));
+    ASSERT_TRUE(cq->getCollator() == nullptr);
+}
+
+TEST_F(CanonicalQueryTest, TestCollatorFactoryInterface) {
+    CollatorFactoryInterface::get(txn()->getServiceContext());
+}
+
+/*
+TEST_F(CanonicalQueryTest, CanonicalizeFromLPQCollator) {
+    const bool isExplain = false;
+    const std::string cmdStr = "{find:'testcoll', filter: {}, collation: {locale: 'en_US'}}";
+    auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(nss, fromjson(cmdStr), isExplain));
+    auto cq = assertGet(CanonicalQuery::canonicalize(txn(), lpq.release(), ExtensionsCallbackDisallowExtensions()));
+    auto collator = CollatorFactoryInterface::get(txn()->getServiceContext())->makeFromBSON(BSON("locale" << "en_US"));
+    ASSERT_TRUE(CollatorInterface::collatorsMatch(cq->getCollator(), collator.getValue().get()));
+}
+*/
 
 }  // namespace
 }  // namespace mongo

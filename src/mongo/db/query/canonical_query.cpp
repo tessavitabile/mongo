@@ -34,6 +34,8 @@
 
 #include "mongo/db/jsobj.h"
 #include "mongo/db/namespace_string.h"
+#include "mongo/db/operation_context.h"
+#include "mongo/db/query/collation/collator_factory_interface.h"
 #include "mongo/db/query/query_planner_common.h"
 #include "mongo/util/log.h"
 
@@ -234,7 +236,7 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     // Make the CQ we'll hopefully return.
     std::unique_ptr<CanonicalQuery> cq(new CanonicalQuery());
 
-    Status initStatus = cq->init(autoLpq.release(), extensionsCallback, me.release());
+    Status initStatus = cq->init(txn, autoLpq.release(), extensionsCallback, me.release());
 
     if (!initStatus.isOK()) {
         return initStatus;
@@ -251,26 +253,24 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     // TODO: we should be passing the filter corresponding to 'root' to the LPQ rather than the base
     // query's filter, baseQuery.getParsed().getFilter().
     BSONObj emptyObj;
-    auto lpqStatus = LiteParsedQuery::makeAsOpQuery(baseQuery.nss(),
-                                                    0,  // ntoskip
-                                                    0,  // ntoreturn
-                                                    0,  // queryOptions
+    auto lpq = LiteParsedQuery::makeAsFindCmd(baseQuery.nss(),
                                                     baseQuery.getParsed().getFilter(),
                                                     baseQuery.getParsed().getProj(),
                                                     baseQuery.getParsed().getSort(),
                                                     emptyObj,  // hint
-                                                    emptyObj,  // min
-                                                    emptyObj,  // max
-                                                    false,     // snapshot
+                                                    emptyObj,  // readConcern
+                                                    baseQuery.getParsed().getCollation(),
+                                                    boost::none,  // skip
+                                                    boost::none,  // limit
+                                                    boost::none,  // batchSize,
+                                                    boost::none,  // ntoreturn,
+                                                    true,         // wantMore
                                                     baseQuery.getParsed().isExplain());
-    if (!lpqStatus.isOK()) {
-        return lpqStatus.getStatus();
-    }
 
     // Make the CQ we'll hopefully return.
     std::unique_ptr<CanonicalQuery> cq(new CanonicalQuery());
     Status initStatus = cq->init(
-        lpqStatus.getValue().release(), extensionsCallback, root->shallowClone().release());
+        txn, lpq.release(), extensionsCallback, root->shallowClone().release());
 
     if (!initStatus.isOK()) {
         return initStatus;
@@ -315,7 +315,7 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
 
     // Make the CQ we'll hopefully return.
     std::unique_ptr<CanonicalQuery> cq(new CanonicalQuery());
-    Status initStatus = cq->init(lpq.release(), extensionsCallback, me.release());
+    Status initStatus = cq->init(txn, lpq.release(), extensionsCallback, me.release());
 
     if (!initStatus.isOK()) {
         return initStatus;
@@ -323,10 +323,20 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     return std::move(cq);
 }
 
-Status CanonicalQuery::init(LiteParsedQuery* lpq,
+Status CanonicalQuery::init(OperationContext* txn,
+                            LiteParsedQuery* lpq,
                             const ExtensionsCallback& extensionsCallback,
                             MatchExpression* root) {
     _pq.reset(lpq);
+
+    if (!_pq->getCollation().isEmpty()) {
+        auto collator = CollatorFactoryInterface::get(txn->getServiceContext())
+                            ->makeFromBSON(_pq->getCollation());
+        if (!collator.isOK()) {
+            return collator.getStatus();
+        }
+        _collator.reset(collator.getValue().get());
+    }
 
     _hasNoopExtensions = extensionsCallback.hasNoopExtensions();
     _isIsolated = LiteParsedQuery::isQueryIsolated(lpq->getFilter());
