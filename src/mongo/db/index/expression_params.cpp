@@ -194,4 +194,11 @@ void ExpressionParams::parse2dsphereParams(const BSONObj& infoObj, S2IndexingPar
             out->indexVersion == S2_INDEX_VERSION_3 || out->indexVersion == S2_INDEX_VERSION_2 ||
                 out->indexVersion == S2_INDEX_VERSION_1);
 }
+
+void ExpressionParams::initialize2dsphereParams(const BSONObj& infoObj,
+                                                CollatorInterface* collator,
+                                                S2IndexingParams* out) {
+    parse2dsphereParams(infoObj, out);
+    out->collator = collator;
+}
 }  // namespace mongo

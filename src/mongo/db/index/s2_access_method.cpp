@@ -49,7 +49,8 @@ S2AccessMethod::S2AccessMethod(IndexCatalogEntry* btreeState, SortedDataInterfac
     : IndexAccessMethod(btreeState, btree) {
     const IndexDescriptor* descriptor = btreeState->descriptor();
 
-    ExpressionParams::parse2dsphereParams(descriptor->infoObj(), &_params);
+    ExpressionParams::initialize2dsphereParams(
+        descriptor->infoObj(), btreeState->getCollator(), &_params);
 
     int geoFields = 0;
 
@@ -76,8 +77,6 @@ S2AccessMethod::S2AccessMethod(IndexCatalogEntry* btreeState, SortedDataInterfac
         warning() << "Sparse option ignored for index spec " << descriptor->keyPattern().toString()
                   << "\n";
     }
-
-    _params.collator = btreeState->getCollator();
 }
 
 // static

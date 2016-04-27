@@ -43,10 +43,6 @@ using namespace mongo;
 
 namespace {
 
-//
-// Helper functions
-//
-
 std::string dumpKeyset(const BSONObjSet& objs) {
     std::stringstream ss;
     ss << "[ ";
@@ -67,10 +63,6 @@ bool assertKeysetsEqual(const BSONObjSet& expectedKeys, const BSONObjSet& actual
     return true;
 }
 
-//
-// Unit tests
-//
-
 TEST(2dKeyGeneratorTest, TrailingField) {
     BSONObj obj = fromjson("{a: [0, 0], b: 5}");
     BSONObj infoObj = fromjson("{key: {a: '2d', b: 1}}");
@@ -81,11 +73,11 @@ TEST(2dKeyGeneratorTest, TrailingField) {
     ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs);
 
     BSONObjSet expectedKeys;
-    BSONObj locObj = BSON("0" << 0 << "1" << 0);
-    BSONObjBuilder b;
-    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&b, "");
-    b.append("", 5);
-    expectedKeys.insert(b.obj());
+    BSONObj locObj = BSON_ARRAY(0 << 0);
+    BSONObjBuilder bob;
+    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&bob, "");
+    bob.append("", 5);
+    expectedKeys.insert(bob.obj());
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
@@ -100,14 +92,11 @@ TEST(2dKeyGeneratorTest, ArrayTrailingField) {
     ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs);
 
     BSONObjSet expectedKeys;
-    BSONObj locObj = BSON("0" << 0 << "1" << 0);
-    BSONObjBuilder b;
-    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&b, "");
-    BSONArrayBuilder aBuilder;
-    aBuilder.append(5);
-    aBuilder.append(6);
-    b.append("", aBuilder.arr());
-    expectedKeys.insert(b.obj());
+    BSONObj locObj = BSON_ARRAY(0 << 0);
+    BSONObjBuilder bob;
+    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&bob, "");
+    bob.append("", BSON_ARRAY(5 << 6));
+    expectedKeys.insert(bob.obj());
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
@@ -122,14 +111,11 @@ TEST(2dKeyGeneratorTest, ArrayOfObjectsTrailingField) {
     ExpressionKeysPrivate::get2DKeys(obj, params, &actualKeys, &locs);
 
     BSONObjSet expectedKeys;
-    BSONObj locObj = BSON("0" << 0 << "1" << 0);
-    BSONObjBuilder b;
-    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&b, "");
-    BSONArrayBuilder aBuilder;
-    aBuilder.append(5);
-    aBuilder.append(6);
-    b.append("", aBuilder.arr());
-    expectedKeys.insert(b.obj());
+    BSONObj locObj = BSON_ARRAY(0 << 0);
+    BSONObjBuilder bob;
+    params.geoHashConverter->hash(locObj, nullptr).appendHashMin(&bob, "");
+    bob.append("", BSON_ARRAY(5 << 6));
+    expectedKeys.insert(bob.obj());
 
     ASSERT(assertKeysetsEqual(expectedKeys, actualKeys));
 }
