@@ -26,21 +26,23 @@
  *    it in the license file.
  */
 
-#include "mongo/platform/basic.h"
+#pragma once
 
-#include "mongo/bson/bsonobj.h"
-#include "mongo/db/query/collation/collator_factory_mock.h"
-#include "mongo/unittest/unittest.h"
+#include "mongo/db/client.h"
+#include "mongo/db/service_context_noop.h"
 
-namespace {
+namespace mongo {
 
-using namespace mongo;
+class QueryTestServiceContext {
+public:
+	QueryTestServiceContext();
+    /**
+     * Returns an operation context whose service context is decorated with a CollatorFactoryInterface.
+     */
+     ServiceContext::UniqueOperationContext makeOperationContext();
+private:
+	ServiceContextNoop _serviceContext;
+	ServiceContext::UniqueClient _uniqueClient;
+};
 
-TEST(CollatorFactoryMockTest, CollatorFactoryMockConstructsReverseStringCollator) {
-    CollatorFactoryMock factory;
-    auto collator = factory.makeFromBSON(BSONObj());
-    ASSERT_OK(collator.getStatus());
-    ASSERT_GT(collator.getValue()->compare("abc", "cba"), 0);
-}
-
-}  // namespace
+}  // namespace mongo
