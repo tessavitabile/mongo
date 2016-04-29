@@ -35,14 +35,16 @@ namespace mongo {
 
 class QueryTestServiceContext {
 public:
-	QueryTestServiceContext();
+    QueryTestServiceContext();
     /**
-     * Returns an operation context whose service context is decorated with a CollatorFactoryInterface.
+     * Returns an operation context whose service context is decorated with a
+     * CollatorFactoryInterface.
      */
-     ServiceContext::UniqueOperationContext makeOperationContext();
+    ServiceContext::UniqueOperationContext makeOperationContext();
+
 private:
-	ServiceContextNoop _serviceContext;
-	ServiceContext::UniqueClient _uniqueClient;
+    ServiceContextNoop _serviceContext;
+    ServiceContext::UniqueClient _uniqueClient;
 };
 
 }  // namespace mongo

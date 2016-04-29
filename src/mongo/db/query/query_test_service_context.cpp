@@ -36,12 +36,12 @@
 namespace mongo {
 
 QueryTestServiceContext::QueryTestServiceContext() {
-	CollatorFactoryInterface::set(&_serviceContext, stdx::make_unique<CollatorFactoryMock>());
-	_uniqueClient = _serviceContext.makeClient("QueryTest");
+    CollatorFactoryInterface::set(&_serviceContext, stdx::make_unique<CollatorFactoryMock>());
+    _uniqueClient = _serviceContext.makeClient("QueryTest");
 }
 
 ServiceContext::UniqueOperationContext QueryTestServiceContext::makeOperationContext() {
-	return _uniqueClient->makeOperationContext();
+    return _uniqueClient->makeOperationContext();
 }
 
 }  // namespace mongo
