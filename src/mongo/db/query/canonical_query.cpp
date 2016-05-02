@@ -129,6 +129,7 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
                                         0,         // skip
                                         0,         // limit
                                         emptyObj,  // hint
+                                        emptyObj,  // collation
                                         emptyObj,  // min
                                         emptyObj,  // max
                                         false,     // snapshot
@@ -196,6 +197,7 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
                                         skip,
                                         limit,
                                         hint,
+                                        emptyObj,  // collation
                                         emptyObj,
                                         emptyObj,
                                         false,  // snapshot
@@ -224,10 +226,19 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     OperationContext* txn, LiteParsedQuery* lpq, const ExtensionsCallback& extensionsCallback) {
     std::unique_ptr<LiteParsedQuery> autoLpq(lpq);
 
+    std::unique_ptr<CollatorInterface> collator;
+    if (!lpq->getCollation().isEmpty()) {
+        auto statusWithCollator = CollatorFactoryInterface::get(txn->getServiceContext())
+                                      ->makeFromBSON(lpq->getCollation());
+        if (!statusWithCollator.isOK()) {
+            return statusWithCollator.getStatus();
+        }
+        collator.reset(statusWithCollator.getValue().release());
+    }
+
     // Make MatchExpression.
-    // TODO SERVER-23610: pass our CollatorInterface* instead of nullptr.
     StatusWithMatchExpression statusWithMatcher =
-        MatchExpressionParser::parse(autoLpq->getFilter(), extensionsCallback, nullptr);
+        MatchExpressionParser::parse(autoLpq->getFilter(), extensionsCallback, collator.get());
     if (!statusWithMatcher.isOK()) {
         return statusWithMatcher.getStatus();
     }
@@ -236,7 +247,8 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     // Make the CQ we'll hopefully return.
     std::unique_ptr<CanonicalQuery> cq(new CanonicalQuery());
 
-    Status initStatus = cq->init(txn, autoLpq.release(), extensionsCallback, me.release());
+    Status initStatus =
+        cq->init(autoLpq.release(), extensionsCallback, me.release(), collator.release());
 
     if (!initStatus.isOK()) {
         return initStatus;
@@ -269,8 +281,20 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
 
     // Make the CQ we'll hopefully return.
     std::unique_ptr<CanonicalQuery> cq(new CanonicalQuery());
-    Status initStatus =
-        cq->init(txn, lpq.release(), extensionsCallback, root->shallowClone().release());
+
+    // TODO SERVER-23611: The match expression in cq should have a pointer to this collator.
+    std::unique_ptr<CollatorInterface> collator;
+    if (!lpq->getCollation().isEmpty()) {
+        auto statusWithCollator = CollatorFactoryInterface::get(txn->getServiceContext())
+                                      ->makeFromBSON(lpq->getCollation());
+        if (!statusWithCollator.isOK()) {
+            return statusWithCollator.getStatus();
+        }
+        collator.reset(statusWithCollator.getValue().release());
+    }
+
+    Status initStatus = cq->init(
+        lpq.release(), extensionsCallback, root->shallowClone().release(), collator.release());
 
     if (!initStatus.isOK()) {
         return initStatus;
@@ -288,6 +312,7 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     long long skip,
     long long limit,
     const BSONObj& hint,
+    const BSONObj& collation,
     const BSONObj& minObj,
     const BSONObj& maxObj,
     bool snapshot,
@@ -296,18 +321,41 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     // Pass empty sort and projection.
     BSONObj emptyObj;
 
-    auto lpqStatus = LiteParsedQuery::makeAsOpQuery(
-        std::move(nss), skip, limit, 0, query, proj, sort, hint, minObj, maxObj, snapshot, explain);
-    if (!lpqStatus.isOK()) {
-        return lpqStatus.getStatus();
+    auto lpq = LiteParsedQuery::makeAsFindCmd(std::move(nss),
+                                              query,
+                                              proj,
+                                              sort,
+                                              hint,
+                                              BSONObj(),  // readConcern
+                                              collation,
+                                              skip,
+                                              limit,
+                                              boost::none,  // batchSize
+                                              boost::none,  // ntoreturn
+                                              true,         // wantMore
+                                              explain,
+                                              "",  // comment
+                                              0,   // maxScan
+                                              0,   // maxTimeMS
+                                              minObj,
+                                              maxObj,
+                                              false,  // returnKey
+                                              false,  // showRecordId
+                                              snapshot);
+
+    std::unique_ptr<CollatorInterface> collator;
+    if (!lpq->getCollation().isEmpty()) {
+        auto statusWithCollator = CollatorFactoryInterface::get(txn->getServiceContext())
+                                      ->makeFromBSON(lpq->getCollation());
+        if (!statusWithCollator.isOK()) {
+            return statusWithCollator.getStatus();
+        }
+        collator.reset(statusWithCollator.getValue().release());
     }
 
-    auto& lpq = lpqStatus.getValue();
-
     // Build a parse tree from the BSONObj in the parsed query.
-    // TODO SERVER-23610: pass our CollatorInterface* instead of nullptr.
     StatusWithMatchExpression statusWithMatcher =
-        MatchExpressionParser::parse(lpq->getFilter(), extensionsCallback, nullptr);
+        MatchExpressionParser::parse(lpq->getFilter(), extensionsCallback, collator.get());
     if (!statusWithMatcher.isOK()) {
         return statusWithMatcher.getStatus();
     }
@@ -315,7 +363,8 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
 
     // Make the CQ we'll hopefully return.
     std::unique_ptr<CanonicalQuery> cq(new CanonicalQuery());
-    Status initStatus = cq->init(txn, lpq.release(), extensionsCallback, me.release());
+    Status initStatus =
+        cq->init(lpq.release(), extensionsCallback, me.release(), collator.release());
 
     if (!initStatus.isOK()) {
         return initStatus;
@@ -323,20 +372,12 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     return std::move(cq);
 }
 
-Status CanonicalQuery::init(OperationContext* txn,
-                            LiteParsedQuery* lpq,
+Status CanonicalQuery::init(LiteParsedQuery* lpq,
                             const ExtensionsCallback& extensionsCallback,
-                            MatchExpression* root) {
-    if (!lpq->getCollation().isEmpty()) {
-        auto statusWithCollator = CollatorFactoryInterface::get(txn->getServiceContext())
-                                      ->makeFromBSON(lpq->getCollation());
-        if (!statusWithCollator.isOK()) {
-            return statusWithCollator.getStatus();
-        }
-        _collator.reset(statusWithCollator.getValue().release());
-    }
-
+                            MatchExpression* root,
+                            CollatorInterface* collator) {
     _pq.reset(lpq);
+    _collator.reset(collator);
 
     _hasNoopExtensions = extensionsCallback.hasNoopExtensions();
     _isIsolated = LiteParsedQuery::isQueryIsolated(lpq->getFilter());
@@ -368,7 +409,6 @@ Status CanonicalQuery::init(OperationContext* txn,
 
     return Status::OK();
 }
-
 
 // static
 bool CanonicalQuery::isSimpleIdQuery(const BSONObj& query) {

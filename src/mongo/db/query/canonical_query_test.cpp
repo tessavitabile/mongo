@@ -747,5 +747,51 @@ TEST(CanonicalQueryTest, CanonicalQueryFromBaseQueryWithCollation) {
     ASSERT_TRUE(CollatorInterface::collatorsMatch(childCq->getCollator(), baseCq->getCollator()));
 }
 
+TEST(CanonicalQueryTest, CanonicalQueryFromFindWithNoCollation) {
+    QueryTestServiceContext serviceContext;
+    auto txn = serviceContext.makeOperationContext();
+
+    auto cq = CanonicalQuery::canonicalize(txn.get(),
+                                           nss,
+                                           BSONObj(),  // query
+                                           BSONObj(),  // sort
+                                           BSONObj(),  // projection
+                                           0,          // skip
+                                           0,          // limit
+                                           BSONObj(),  // hint
+                                           BSONObj(),  // collation
+                                           BSONObj(),  // minObj
+                                           BSONObj(),  // maxObj
+                                           false,      // snapshot
+                                           false,      // explain
+                                           ExtensionsCallbackDisallowExtensions());
+    ASSERT_OK(cq.getStatus());
+    ASSERT_TRUE(cq.getValue()->getCollator() == nullptr);
+}
+
+TEST(CanonicalQueryTest, CanonicalQueryFromFindWithCollation) {
+    QueryTestServiceContext serviceContext;
+    auto txn = serviceContext.makeOperationContext();
+
+    auto cq = CanonicalQuery::canonicalize(txn.get(),
+                                           nss,
+                                           BSONObj(),  // query
+                                           BSONObj(),  // sort
+                                           BSONObj(),  // projection
+                                           0,          // skip
+                                           0,          // limit
+                                           BSONObj(),  // hint
+                                           BSON("locale"
+                                                << "reverse"),  // collation
+                                           BSONObj(),           // minObj
+                                           BSONObj(),           // maxObj
+                                           false,               // snapshot
+                                           false,               // explain
+                                           ExtensionsCallbackDisallowExtensions());
+    ASSERT_OK(cq.getStatus());
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    ASSERT_TRUE(CollatorInterface::collatorsMatch(cq.getValue()->getCollator(), &collator));
+}
+
 }  // namespace
 }  // namespace mongo

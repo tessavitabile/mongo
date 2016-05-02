@@ -117,6 +117,7 @@ unique_ptr<CanonicalQuery> canonicalize(const char* queryStr,
                                                      skip,
                                                      limit,
                                                      hintObj,
+                                                     BSONObj(),  // collation
                                                      minObj,
                                                      maxObj,
                                                      false,  // snapshot
@@ -153,6 +154,7 @@ unique_ptr<CanonicalQuery> canonicalize(const char* queryStr,
                                                      skip,
                                                      limit,
                                                      hintObj,
+                                                     BSONObj(),  // collation
                                                      minObj,
                                                      maxObj,
                                                      snapshot,
@@ -549,6 +551,7 @@ protected:
                                                          skip,
                                                          limit,
                                                          hint,
+                                                         BSONObj(),  // collation
                                                          minObj,
                                                          maxObj,
                                                          snapshot,

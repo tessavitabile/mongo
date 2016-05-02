@@ -148,6 +148,7 @@ public:
         long long skip,
         long long limit,
         const BSONObj& hint,
+        const BSONObj& collation,
         const BSONObj& minObj,
         const BSONObj& maxObj,
         bool snapshot,
@@ -243,12 +244,12 @@ private:
     CanonicalQuery() {}
 
     /**
-     * Takes ownership of 'root' and 'lpq'.
+     * Takes ownership of 'root', 'lpq', and 'collator'.
      */
-    Status init(OperationContext* txn,
-                LiteParsedQuery* lpq,
+    Status init(LiteParsedQuery* lpq,
                 const ExtensionsCallback& extensionsCallback,
-                MatchExpression* root);
+                MatchExpression* root,
+                CollatorInterface* collator);
 
     std::unique_ptr<LiteParsedQuery> _pq;
 

@@ -88,6 +88,7 @@ Status ParsedUpdate::parseQueryToCQ() {
     // The projection needs to be applied after the update operation, so we specify an empty
     // BSONObj as the projection during canonicalization.
     const BSONObj emptyObj;
+    // TODO SERVER-23473: Pass the appropriate collation instead of emptyObj.
     auto statusWithCQ = CanonicalQuery::canonicalize(_txn,
                                                      _request->getNamespaceString(),
                                                      _request->getQuery(),
@@ -96,6 +97,7 @@ Status ParsedUpdate::parseQueryToCQ() {
                                                      0,         // skip
                                                      limit,
                                                      emptyObj,  // hint
+                                                     emptyObj,  // collation
                                                      emptyObj,  // min
                                                      emptyObj,  // max
                                                      false,     // snapshot

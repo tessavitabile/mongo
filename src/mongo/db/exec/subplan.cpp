@@ -186,6 +186,8 @@ Status SubplanStage::planSubqueries() {
         MatchExpression* orChild = _orExpression->getChild(i);
 
         // Turn the i-th child into its own query.
+        // Until SERVER-23611 is resolved, the child canonical query must outlive its parent, or the
+        // CollatorInterface* in its MatchExpression will be a dangling pointer.
         auto statusWithCQ =
             CanonicalQuery::canonicalize(getOpCtx(), *_query, orChild, extensionsCallback);
         if (!statusWithCQ.isOK()) {

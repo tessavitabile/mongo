@@ -1154,6 +1154,7 @@ StatusWith<unique_ptr<PlanExecutor>> getExecutorCount(OperationContext* txn,
                                                       PlanExecutor::YieldPolicy yieldPolicy) {
     unique_ptr<WorkingSet> ws = make_unique<WorkingSet>();
 
+    // TODO SERVER-23473: Pass the appropriate collation instead of BSONObj().
     auto cq = CanonicalQuery::canonicalize(
         txn,
         request.getNs(),
@@ -1163,6 +1164,7 @@ StatusWith<unique_ptr<PlanExecutor>> getExecutorCount(OperationContext* txn,
         0,          // skip
         0,          // limit
         request.getHint(),
+        BSONObj(),  // collation
         BSONObj(),  // min
         BSONObj(),  // max
         false,      // snapshot
@@ -1350,6 +1352,7 @@ StatusWith<unique_ptr<PlanExecutor>> getExecutorDistinct(OperationContext* txn,
     BSONObj projection = getDistinctProjection(field);
 
     // Apply a projection of the key.  Empty BSONObj() is for the sort.
+    // TODO SERVER-23473: Pass the appropriate collation instead of BSONObj().
     auto statusWithCQ = CanonicalQuery::canonicalize(txn,
                                                      collection->ns(),
                                                      query,
@@ -1358,6 +1361,7 @@ StatusWith<unique_ptr<PlanExecutor>> getExecutorDistinct(OperationContext* txn,
                                                      0,          // skip
                                                      0,          // limit
                                                      BSONObj(),  // hint
+                                                     BSONObj(),  // collation
                                                      BSONObj(),  // min
                                                      BSONObj(),  // max
                                                      false,      // snapshot
