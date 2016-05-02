@@ -41,6 +41,7 @@
 namespace {
 
 using namespace mongo;
+using BadInputTest = QueryPlannerTest;
 
 //
 // Equality
@@ -4138,7 +4139,7 @@ TEST_F(QueryPlannerTest, KeyPatternOverflowsInt) {
 // Test bad input to query planner helpers.
 //
 
-TEST_F(QueryPlannerTest, CacheDataFromTaggedTree) {
+TEST_F(BadInputTest, CacheDataFromTaggedTree) {
     PlanCacheIndexTree* indexTree;
 
     // Null match expression.
@@ -4163,7 +4164,7 @@ TEST_F(QueryPlannerTest, CacheDataFromTaggedTree) {
     ASSERT(NULL == indexTree);
 }
 
-TEST_F(QueryPlannerTest, TagAccordingToCache) {
+TEST_F(BadInputTest, TagAccordingToCache) {
     const NamespaceString nss("test.collection");
 
     auto statusWithCQ = CanonicalQuery::canonicalize(

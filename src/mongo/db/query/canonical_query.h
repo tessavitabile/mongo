@@ -46,6 +46,9 @@ public:
      * If parsing succeeds, returns a std::unique_ptr<CanonicalQuery> representing the parsed
      * query (which will never be NULL).  If parsing fails, returns an error Status.
      *
+     * 'txn' must point to a valid OperationContext, but 'txn' does not need to outlive the returned
+     *CanonicalQuery.
+     *
      * Used for legacy find through the OP_QUERY message.
      */
     static StatusWith<std::unique_ptr<CanonicalQuery>> canonicalize(
@@ -58,6 +61,9 @@ public:
      *
      * If parsing succeeds, returns a std::unique_ptr<CanonicalQuery> representing the parsed
      * query (which will never be NULL).  If parsing fails, returns an error Status.
+     *
+     * 'txn' must point to a valid OperationContext, but 'txn' does not need to outlive the returned
+     *CanonicalQuery.
      *
      * Used for finds using the find command path.
      */
