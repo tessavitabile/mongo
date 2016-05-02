@@ -686,5 +686,66 @@ TEST(CanonicalQueryTest, CanonicalizeFromBaseQuery) {
     ASSERT_TRUE(childCq->getParsed().isExplain());
 }
 
+TEST(CanonicalQueryTest, CanonicalQueryFromLPQWithNoCollation) {
+    QueryTestServiceContext serviceContext;
+    auto txn = serviceContext.makeOperationContext();
+
+    const bool isExplain = false;
+    auto lpq = assertGet(
+        LiteParsedQuery::makeFromFindCommand(nss, fromjson("{find: 'testcoll'}"), isExplain));
+    auto cq = CanonicalQuery::canonicalize(
+        txn.get(), lpq.release(), ExtensionsCallbackDisallowExtensions());
+    ASSERT_OK(cq.getStatus());
+    ASSERT_TRUE(cq.getValue()->getCollator() == nullptr);
+}
+
+TEST(CanonicalQueryTest, CanonicalQueryFromLPQWithCollation) {
+    QueryTestServiceContext serviceContext;
+    auto txn = serviceContext.makeOperationContext();
+
+    const bool isExplain = false;
+    auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(
+        nss, fromjson("{find: 'testcoll', collation: {'locale': 'reverse'}}"), isExplain));
+    auto cq = CanonicalQuery::canonicalize(
+        txn.get(), lpq.release(), ExtensionsCallbackDisallowExtensions());
+    ASSERT_OK(cq.getStatus());
+    CollatorInterfaceMock collator(CollatorInterfaceMock::MockType::kReverseString);
+    ASSERT_TRUE(CollatorInterface::collatorsMatch(cq.getValue()->getCollator(), &collator));
+}
+
+TEST(CanonicalQueryTest, CanonicalQueryFromBaseQueryWithNoCollation) {
+    QueryTestServiceContext serviceContext;
+    auto txn = serviceContext.makeOperationContext();
+
+    const bool isExplain = false;
+    auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(
+        nss, fromjson("{find: 'testcoll', filter:{$or:[{a:1,b:1},{a:1,c:1}]}}"), isExplain));
+    auto baseCq = assertGet(CanonicalQuery::canonicalize(
+        txn.get(), lpq.release(), ExtensionsCallbackDisallowExtensions()));
+    MatchExpression* firstClauseExpr = baseCq->root()->getChild(0);
+    auto childCq = assertGet(CanonicalQuery::canonicalize(
+        txn.get(), *baseCq, firstClauseExpr, ExtensionsCallbackDisallowExtensions()));
+    ASSERT_TRUE(CollatorInterface::collatorsMatch(childCq->getCollator(), baseCq->getCollator()));
+}
+
+TEST(CanonicalQueryTest, CanonicalQueryFromBaseQueryWithCollation) {
+    QueryTestServiceContext serviceContext;
+    auto txn = serviceContext.makeOperationContext();
+
+    const bool isExplain = false;
+    auto lpq = assertGet(LiteParsedQuery::makeFromFindCommand(
+        nss,
+        fromjson(
+            "{find: 'testcoll', filter:{$or:[{a:1,b:1},{a:1,c:1}]}, collation: {'locale': "
+            "'reverse'}}"),
+        isExplain));
+    auto baseCq = assertGet(CanonicalQuery::canonicalize(
+        txn.get(), lpq.release(), ExtensionsCallbackDisallowExtensions()));
+    MatchExpression* firstClauseExpr = baseCq->root()->getChild(0);
+    auto childCq = assertGet(CanonicalQuery::canonicalize(
+        txn.get(), *baseCq, firstClauseExpr, ExtensionsCallbackDisallowExtensions()));
+    ASSERT_TRUE(CollatorInterface::collatorsMatch(childCq->getCollator(), baseCq->getCollator()));
+}
+
 }  // namespace
 }  // namespace mongo

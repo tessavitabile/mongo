@@ -33,6 +33,7 @@
 #include "mongo/db/dbmessage.h"
 #include "mongo/db/jsobj.h"
 #include "mongo/db/matcher/expression.h"
+#include "mongo/db/query/collation/collator_interface.h"
 #include "mongo/db/query/lite_parsed_query.h"
 #include "mongo/db/query/parsed_projection.h"
 
@@ -181,6 +182,9 @@ public:
     const ParsedProjection* getProj() const {
         return _proj.get();
     }
+    CollatorInterface* getCollator() {
+        return _collator.get();
+    }
 
     // Debugging
     std::string toString() const;
@@ -241,7 +245,8 @@ private:
     /**
      * Takes ownership of 'root' and 'lpq'.
      */
-    Status init(LiteParsedQuery* lpq,
+    Status init(OperationContext* txn,
+                LiteParsedQuery* lpq,
                 const ExtensionsCallback& extensionsCallback,
                 MatchExpression* root);
 
@@ -251,6 +256,8 @@ private:
     std::unique_ptr<MatchExpression> _root;
 
     std::unique_ptr<ParsedProjection> _proj;
+
+    std::unique_ptr<CollatorInterface> _collator;
 
     bool _hasNoopExtensions = false;
 
