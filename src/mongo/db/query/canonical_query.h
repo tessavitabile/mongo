@@ -47,7 +47,7 @@ public:
      * query (which will never be NULL).  If parsing fails, returns an error Status.
      *
      * 'txn' must point to a valid OperationContext, but 'txn' does not need to outlive the returned
-     *CanonicalQuery.
+     * CanonicalQuery.
      *
      * Used for legacy find through the OP_QUERY message.
      */
@@ -63,7 +63,7 @@ public:
      * query (which will never be NULL).  If parsing fails, returns an error Status.
      *
      * 'txn' must point to a valid OperationContext, but 'txn' does not need to outlive the returned
-     *CanonicalQuery.
+     *  CanonicalQuery.
      *
      * Used for finds using the find command path.
      */

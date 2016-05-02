@@ -34,10 +34,10 @@
 namespace mongo {
 
 /**
-  * QueryTestServiceContext is a helper class for tests that require only a single Client under a
+ * QueryTestServiceContext is a helper class for tests that require only a single Client under a
  * single ServiceContext for their execution context. The owned ServiceContext is decorated with a
  * CollatorFactoryMock.
-  */
+ */
 class QueryTestServiceContext {
 public:
     QueryTestServiceContext();
