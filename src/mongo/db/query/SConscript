@@ -46,6 +46,7 @@ env.Library(
 env.Library(
     target='query',
     source=[
+        # TODO SERVER-22371: Decorate with a CollatorFactoryICU instead.
         "collation/collator_factory_mock_decoration.cpp",
         "explain.cpp",
         "get_executor.cpp",
@@ -57,6 +58,7 @@ env.Library(
         "stage_builder.cpp",
     ],
     LIBDEPS=[
+        # TODO SERVER-22371: Replace collator_factory_mock with collator_factory_icu.
         "collation/collator_factory_mock",
         "internal_plans",
         "query_common",
