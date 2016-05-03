@@ -248,15 +248,11 @@ env.CppUnitTest(
         'shard_key_pattern_test.cpp',
     ],
     LIBDEPS=[
-<<<<<<< HEAD
-=======
-        "$BUILD_DIR/mongo/db/auth/authorization_manager_mock_init",
-        "$BUILD_DIR/mongo/db/query/query_test_service_context",
->>>>>>> 9b5d2d5... make tests use QueryTestServiceContext
         'coreshard',
         'mongoscore',
         'sharding_test_fixture',
         '$BUILD_DIR/mongo/db/auth/authorization_manager_mock_init',
+        "$BUILD_DIR/mongo/db/query/query_test_service_context",
         '$BUILD_DIR/mongo/db/service_context_noop_init',
     ]
 )
