@@ -318,8 +318,8 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     bool snapshot,
     bool explain,
     const ExtensionsCallback& extensionsCallback) {
-    // Pass empty sort and projection.
-    BSONObj emptyObj;
+    auto skipOptional = skip ? boost::optional<long long>(skip) : boost::none;
+    auto ntoreturnOptional = limit ? boost::optional<long long>(limit) : boost::none;
 
     auto lpq = LiteParsedQuery::makeAsFindCmd(std::move(nss),
                                               query,
@@ -328,11 +328,11 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
                                               hint,
                                               BSONObj(),  // readConcern
                                               collation,
-                                              skip,
+                                              skipOptional,
                                               boost::none,  // limit
                                               boost::none,  // batchSize
-                                              limit,        // ntoreturn
-                                              true,         // wantMore
+                                              ntoreturnOptional,
+                                              true,  // wantMore
                                               explain,
                                               "",  // comment
                                               0,   // maxScan
