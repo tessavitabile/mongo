@@ -272,10 +272,10 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
                                               emptyObj,  // hint
                                               emptyObj,  // readConcern
                                               baseQuery.getParsed().getCollation(),
-                                              boost::none,  // skip
+                                              0,            // skip
                                               boost::none,  // limit
                                               boost::none,  // batchSize
-                                              boost::none,  // ntoreturn
+                                              0,            // ntoreturn
                                               true,         // wantMore
                                               baseQuery.getParsed().isExplain());
 
@@ -329,9 +329,9 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
                                               BSONObj(),  // readConcern
                                               collation,
                                               skip,
-                                              limit,
+                                              boost::none,  // limit
                                               boost::none,  // batchSize
-                                              boost::none,  // ntoreturn
+                                              limit,        // ntoreturn
                                               true,         // wantMore
                                               explain,
                                               "",  // comment
