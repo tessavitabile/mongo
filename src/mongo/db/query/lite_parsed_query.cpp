@@ -401,6 +401,7 @@ StatusWith<unique_ptr<LiteParsedQuery>> LiteParsedQuery::makeAsOpQuery(Namespace
                                                                        const BSONObj& proj,
                                                                        const BSONObj& sort,
                                                                        const BSONObj& hint,
+                                                                       const BSONObj& collation,
                                                                        const BSONObj& minObj,
                                                                        const BSONObj& maxObj,
                                                                        bool snapshot,
@@ -408,6 +409,7 @@ StatusWith<unique_ptr<LiteParsedQuery>> LiteParsedQuery::makeAsOpQuery(Namespace
     unique_ptr<LiteParsedQuery> pq(new LiteParsedQuery(std::move(nss)));
     pq->_sort = sort.getOwned();
     pq->_hint = hint.getOwned();
+    pq->_collation = collation.getOwned();
     pq->_min = minObj.getOwned();
     pq->_max = maxObj.getOwned();
     pq->_snapshot = snapshot;

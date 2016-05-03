@@ -55,6 +55,7 @@ TEST(LiteParsedQueryTest, InitSortOrder) {
                                              BSONObj(),
                                              BSONObj(),
                                              BSONObj(),
+                                             BSONObj(),
                                              false,  // snapshot
                                              false)  // explain
                   .getStatus());
@@ -68,6 +69,7 @@ TEST(LiteParsedQueryTest, InitSortOrderString) {
                                                  BSONObj(),
                                                  BSONObj(),
                                                  fromjson("{a: \"\"}"),
+                                                 BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
@@ -87,6 +89,7 @@ TEST(LiteParsedQueryTest, GetFilter) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 
@@ -99,6 +102,7 @@ TEST(LiteParsedQueryTest, NumToReturn) {
                                                                              6,
                                                                              9,
                                                                              BSON("x" << 5),
+                                                                             BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
@@ -122,6 +126,7 @@ TEST(LiteParsedQueryTest, NumToReturnNegative) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 
@@ -134,6 +139,7 @@ TEST(LiteParsedQueryTest, MinFieldsNotPrefixOfMax) {
                                                  0,
                                                  0,
                                                  0,
+                                                 BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
@@ -154,6 +160,7 @@ TEST(LiteParsedQueryTest, MinFieldsMoreThanMax) {
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
+                                                 BSONObj(),
                                                  fromjson("{a: 1, b: 1}"),
                                                  fromjson("{a: 1}"),
                                                  false,  // snapshot
@@ -166,6 +173,7 @@ TEST(LiteParsedQueryTest, MinFieldsLessThanMax) {
                                                  0,
                                                  0,
                                                  0,
+                                                 BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
@@ -249,6 +257,7 @@ void assertLiteParsedQuerySuccess(const BSONObj& query, const BSONObj& proj, con
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 }
@@ -276,6 +285,7 @@ TEST(LiteParsedQueryTest, ForbidNonMetaSortOnFieldWithMetaProject) {
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
+                                                 BSONObj(),
                                                  false,  // snapshot
                                                  false)  // explain
                       .getStatus());
@@ -295,6 +305,7 @@ TEST(LiteParsedQueryTest, ForbidMetaSortOnFieldWithoutMetaProject) {
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
+                                                 BSONObj(),
                                                  false,  // snapshot
                                                  false)  // explain
                       .getStatus());
@@ -306,6 +317,7 @@ TEST(LiteParsedQueryTest, ForbidMetaSortOnFieldWithoutMetaProject) {
                                                  BSONObj(),
                                                  fromjson("{b: 1}"),
                                                  fromjson("{a: {$meta: \"textScore\"}}"),
+                                                 BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
@@ -1182,6 +1194,7 @@ TEST(LiteParsedQueryTest, ParseCommandNotFromFindCommand) {
                                                  6,
                                                  9,
                                                  BSON("x" << 5),
+                                                 BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),
                                                  BSONObj(),

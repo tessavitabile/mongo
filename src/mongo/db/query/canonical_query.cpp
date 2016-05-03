@@ -265,36 +265,41 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     // TODO: we should be passing the filter corresponding to 'root' to the LPQ rather than the base
     // query's filter, baseQuery.getParsed().getFilter().
     BSONObj emptyObj;
-    auto lpq = LiteParsedQuery::makeAsFindCmd(baseQuery.nss(),
-                                              baseQuery.getParsed().getFilter(),
-                                              baseQuery.getParsed().getProj(),
-                                              baseQuery.getParsed().getSort(),
-                                              emptyObj,  // hint
-                                              emptyObj,  // readConcern
-                                              baseQuery.getParsed().getCollation(),
-                                              0,            // skip
-                                              boost::none,  // limit
-                                              boost::none,  // batchSize
-                                              0,            // ntoreturn
-                                              true,         // wantMore
-                                              baseQuery.getParsed().isExplain());
+    auto lpqStatus = LiteParsedQuery::makeAsOpQuery(baseQuery.nss(),
+                                                    0,  // ntoskip
+                                                    0,  // ntoreturn
+                                                    0,  // queryOptions
+                                                    baseQuery.getParsed().getFilter(),
+                                                    baseQuery.getParsed().getProj(),
+                                                    baseQuery.getParsed().getSort(),
+                                                    emptyObj,  // hint
+                                                    baseQuery.getParsed().getCollation(),
+                                                    emptyObj,  // min
+                                                    emptyObj,  // max
+                                                    false,     // snapshot
+                                                    baseQuery.getParsed().isExplain());
+    if (!lpqStatus.isOK()) {
+        return lpqStatus.getStatus();
+    }
 
     // Make the CQ we'll hopefully return.
     std::unique_ptr<CanonicalQuery> cq(new CanonicalQuery());
 
     // TODO SERVER-23611: The match expression in cq should have a pointer to this collator.
     std::unique_ptr<CollatorInterface> collator;
-    if (!lpq->getCollation().isEmpty()) {
+    if (!lpqStatus.getValue()->getCollation().isEmpty()) {
         auto statusWithCollator = CollatorFactoryInterface::get(txn->getServiceContext())
-                                      ->makeFromBSON(lpq->getCollation());
+                                      ->makeFromBSON(lpqStatus.getValue()->getCollation());
         if (!statusWithCollator.isOK()) {
             return statusWithCollator.getStatus();
         }
         collator.reset(statusWithCollator.getValue().release());
     }
 
-    Status initStatus = cq->init(
-        lpq.release(), extensionsCallback, root->shallowClone().release(), collator.release());
+    Status initStatus = cq->init(lpqStatus.getValue().release(),
+                                 extensionsCallback,
+                                 root->shallowClone().release(),
+                                 collator.release());
 
     if (!initStatus.isOK()) {
         return initStatus;
@@ -318,30 +323,24 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     bool snapshot,
     bool explain,
     const ExtensionsCallback& extensionsCallback) {
-    auto skipOptional = skip ? boost::optional<long long>(skip) : boost::none;
-    auto ntoreturnOptional = limit ? boost::optional<long long>(limit) : boost::none;
-
-    auto lpq = LiteParsedQuery::makeAsFindCmd(std::move(nss),
-                                              query,
-                                              proj,
-                                              sort,
-                                              hint,
-                                              BSONObj(),  // readConcern
-                                              collation,
-                                              skipOptional,
-                                              boost::none,  // limit
-                                              boost::none,  // batchSize
-                                              ntoreturnOptional,
-                                              true,  // wantMore
-                                              explain,
-                                              "",  // comment
-                                              0,   // maxScan
-                                              0,   // maxTimeMS
-                                              minObj,
-                                              maxObj,
-                                              false,  // returnKey
-                                              false,  // showRecordId
-                                              snapshot);
+    auto lpqStatus = LiteParsedQuery::makeAsOpQuery(std::move(nss),
+                                                    skip,
+                                                    limit,
+                                                    0,
+                                                    query,
+                                                    proj,
+                                                    sort,
+                                                    hint,
+                                                    collation,
+                                                    minObj,
+                                                    maxObj,
+                                                    snapshot,
+                                                    explain);
+    if (!lpqStatus.isOK()) {
+        return lpqStatus.getStatus();
+    }
+    
+    auto& lpq = lpqStatus.getValue();
 
     std::unique_ptr<CollatorInterface> collator;
     if (!lpq->getCollation().isEmpty()) {

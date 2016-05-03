@@ -72,6 +72,7 @@ public:
                                                                       const BSONObj& proj,
                                                                       const BSONObj& sort,
                                                                       const BSONObj& hint,
+                                                                      const BSONObj& collation,
                                                                       const BSONObj& minObj,
                                                                       const BSONObj& maxObj,
                                                                       bool snapshot,

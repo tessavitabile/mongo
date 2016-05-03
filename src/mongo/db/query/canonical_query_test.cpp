@@ -116,6 +116,7 @@ TEST(CanonicalQueryTest, IsValidText) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 
@@ -184,6 +185,7 @@ TEST(CanonicalQueryTest, IsValidTextTailable) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,
                                                                              false)));
 
@@ -198,6 +200,7 @@ TEST(CanonicalQueryTest, IsValidGeo) {
                                                                              0,
                                                                              0,
                                                                              0,
+                                                                             BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
@@ -281,6 +284,7 @@ TEST(CanonicalQueryTest, IsValidTextAndGeo) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 
@@ -314,6 +318,7 @@ TEST(CanonicalQueryTest, IsValidTextAndNaturalAscending) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 
@@ -332,6 +337,7 @@ TEST(CanonicalQueryTest, IsValidTextAndNaturalDescending) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              sort,
+                                                                             BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
@@ -356,6 +362,7 @@ TEST(CanonicalQueryTest, IsValidTextAndHint) {
                                                                              hint,
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 
@@ -375,6 +382,7 @@ TEST(CanonicalQueryTest, IsValidGeoNearNaturalSort) {
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              sort,
+                                                                             BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
@@ -400,6 +408,7 @@ TEST(CanonicalQueryTest, IsValidGeoNearNaturalHint) {
                                                                              hint,
                                                                              BSONObj(),
                                                                              BSONObj(),
+                                                                             BSONObj(),
                                                                              false,     // snapshot
                                                                              false)));  // explain
 
@@ -415,6 +424,7 @@ TEST(CanonicalQueryTest, IsValidTextAndSnapshot) {
                                                                              0,
                                                                              0,
                                                                              0,
+                                                                             BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
                                                                              BSONObj(),
