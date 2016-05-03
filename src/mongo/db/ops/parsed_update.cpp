@@ -65,6 +65,8 @@ Status ParsedUpdate::parseRequest() {
 Status ParsedUpdate::parseQuery() {
     dassert(!_canonicalQuery.get());
 
+    // TODO: Get rid of simple ID queries? Even if the query has no collation, there might be a
+    // collection default.
     if (!_driver.needMatchDetails() && CanonicalQuery::isSimpleIdQuery(_request->getQuery())) {
         return Status::OK();
     }
@@ -87,6 +89,7 @@ Status ParsedUpdate::parseQueryToCQ() {
 
     // The projection needs to be applied after the update operation, so we specify an empty
     // BSONObj as the projection during canonicalization.
+    // TODO SERVER-23473: Pass the collation to canonicalize().
     const BSONObj emptyObj;
     auto statusWithCQ = CanonicalQuery::canonicalize(_request->getNamespaceString(),
                                                      _request->getQuery(),

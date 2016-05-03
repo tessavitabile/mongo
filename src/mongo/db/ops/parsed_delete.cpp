@@ -60,6 +60,8 @@ Status ParsedDelete::parseRequest() {
     // DeleteStage would not return the deleted document.
     invariant(_request->getProj().isEmpty() || _request->shouldReturnDeleted());
 
+    // TODO: Get rid of simple ID queries? Even if the query has no collation, there might be a
+    // collection default.
     if (CanonicalQuery::isSimpleIdQuery(_request->getQuery())) {
         return Status::OK();
     }
@@ -82,6 +84,7 @@ Status ParsedDelete::parseQueryToCQ() {
 
     // The projection needs to be applied after the delete operation, so we specify an empty
     // BSONObj as the projection during canonicalization.
+    // TODO SERVER-23473: Pass the collation to canonicalize().
     const BSONObj emptyObj;
     auto statusWithCQ = CanonicalQuery::canonicalize(_request->getNamespaceString(),
                                                      _request->getQuery(),

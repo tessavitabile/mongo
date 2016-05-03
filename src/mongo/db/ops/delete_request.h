@@ -58,6 +58,9 @@ public:
     void setSort(const BSONObj& sort) {
         _sort = sort;
     }
+    void setCollation(const BSONObj& collation) {
+        _collation = collation;
+    }
     void setMulti(bool multi = true) {
         _multi = multi;
     }
@@ -89,6 +92,9 @@ public:
     const BSONObj& getSort() const {
         return _sort;
     }
+    const BSONObj& getCollation() const {
+        return _collation;
+    }
     bool isMulti() const {
         return _multi;
     }
@@ -115,6 +121,7 @@ private:
     BSONObj _query;
     BSONObj _proj;
     BSONObj _sort;
+    BSONObj _collation;
     bool _multi;
     bool _god;
     bool _fromMigrate;
