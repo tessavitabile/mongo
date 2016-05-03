@@ -339,7 +339,7 @@ StatusWith<std::unique_ptr<CanonicalQuery>> CanonicalQuery::canonicalize(
     if (!lpqStatus.isOK()) {
         return lpqStatus.getStatus();
     }
-    
+
     auto& lpq = lpqStatus.getValue();
 
     std::unique_ptr<CollatorInterface> collator;
