@@ -38,6 +38,7 @@
 #include "mongo/db/catalog/document_validation.h"
 #include "mongo/db/commands.h"
 #include "mongo/db/jsobj.h"
+#include "mongo/db/query/collation/collation_serializer.h"
 #include "mongo/db/pipeline/accumulator.h"
 #include "mongo/db/pipeline/document.h"
 #include "mongo/db/pipeline/document_source.h"
@@ -56,6 +57,7 @@ using std::vector;
 
 const char Pipeline::commandName[] = "aggregate";
 const char Pipeline::pipelineName[] = "pipeline";
+const char Pipeline::collationName[] = "collation";
 const char Pipeline::explainName[] = "explain";
 const char Pipeline::fromRouterName[] = "fromRouter";
 const char Pipeline::serverPipelineName[] = "serverPipeline";
@@ -98,6 +100,11 @@ intrusive_ptr<Pipeline> Pipeline::parseCommand(string& errmsg,
 
         // ignore writeConcern since it's handled externally
         if (str::equals(pFieldName, "writeConcern")) {
+            continue;
+        }
+
+        // ignore collation since it's handled in PipelineCommand::run().
+        if (str::equals(pFieldName, collationName)) {
             continue;
         }
 
@@ -435,6 +442,11 @@ Document Pipeline::serialize() const {
 
     if (pCtx->bypassDocumentValidation) {
         serialized.setField(bypassDocumentValidationCommandOption(), Value(true));
+    }
+
+    if (pCtx->collator.get()) {
+        serialized.setField(collationName,
+                            Value(CollationSerializer::specToBSON(pCtx->collator->getSpec())));
     }
 
     return serialized.freeze();
