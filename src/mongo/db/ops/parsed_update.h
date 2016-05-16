@@ -112,14 +112,9 @@ public:
 
 private:
     /**
-     * Parses the query portion of the update request.
-     */
-    Status parseQuery();
-
-    /**
      * Parses the update-descriptor portion of the update request.
      */
-    Status parseUpdate();
+    Status parseUpdate(const CollatorInterface* collator);
 
     // Unowned pointer to the transactional context.
     OperationContext* _txn;

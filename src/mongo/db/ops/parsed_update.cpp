@@ -49,30 +49,26 @@ Status ParsedUpdate::parseRequest() {
     // UpdateStage would not return any document.
     invariant(_request->getProj().isEmpty() || _request->shouldReturnAnyDocs());
 
-    // We parse the update portion before the query portion because the dispostion of the update
-    // may determine whether or not we need to produce a CanonicalQuery at all.  For example, if
-    // the update involves the positional-dollar operator, we must have a CanonicalQuery even if
-    // it isn't required for query execution.
-    Status status = parseUpdate();
-    if (!status.isOK())
-        return status;
-    status = parseQuery();
-    if (!status.isOK())
-        return status;
-    return Status::OK();
-}
-
-Status ParsedUpdate::parseQuery() {
-    dassert(!_canonicalQuery.get());
-
+    // If the request has no collation, is a simple ID query, and does not require array match
+    // details, we can use the id hash and do not need to construct a CanonicalQuery.
     // TODO SERVER-23611: Create decision logic for idhack when the query has no collation, but
     // there may be a collection default collation.
-    if (!_driver.needMatchDetails() && _request->getCollation().isEmpty() &&
+    if (_request->getCollation().isEmpty() &&
         CanonicalQuery::isSimpleIdQuery(_request->getQuery())) {
-        return Status::OK();
+        CollatorInterface* collator = nullptr;
+        Status status = parseUpdate(collator);
+        if (!status.isOK()) {
+            return status;
+        }
+        if (!_driver.needMatchDetails()) {
+            return Status::OK();
+        }
     }
-
-    return parseQueryToCQ();
+    Status status = parseQueryToCQ();
+    if (!status.isOK()) {
+        return status;
+    }
+    return parseUpdate(_canonicalQuery->getCollator());
 }
 
 Status ParsedUpdate::parseQueryToCQ() {
@@ -85,6 +81,7 @@ Status ParsedUpdate::parseQueryToCQ() {
     auto lpq = stdx::make_unique<LiteParsedQuery>(_request->getNamespaceString());
     lpq->setFilter(_request->getQuery());
     lpq->setSort(_request->getSort());
+    lpq->setCollation(_request->getCollation());
     lpq->setExplain(_request->isExplain());
 
     // Limit should only used for the findAndModify command when a sort is specified. If a sort
@@ -93,7 +90,6 @@ Status ParsedUpdate::parseQueryToCQ() {
     // deleted/modified under it, but a limit could inhibit that and give an EOF when the update
     // has not actually updated a document. This behavior is fine for findAndModify, but should
     // not apply to update in general.
-    // TODO SERVER-23473: Pass the collation to canonicalize().
     if (!_request->isMulti() && !_request->getSort().isEmpty()) {
         lpq->setLimit(1);
     }
@@ -106,7 +102,7 @@ Status ParsedUpdate::parseQueryToCQ() {
     return statusWithCQ.getStatus();
 }
 
-Status ParsedUpdate::parseUpdate() {
+Status ParsedUpdate::parseUpdate(const CollatorInterface* collator) {
     const NamespaceString& ns(_request->getNamespaceString());
 
     // Should the modifiers validate their embedded docs via okForStorage
@@ -117,9 +113,8 @@ Status ParsedUpdate::parseUpdate() {
         !(!_txn->writesAreReplicated() || ns.isConfigDB() || _request->isFromMigration());
 
     _driver.setLogOp(true);
-    // TODO SERVER-23473: pass down the CollatorInterface as an option to ModifierInterface.
     _driver.setModOptions(
-        ModifierInterface::Options(!_txn->writesAreReplicated(), shouldValidate, nullptr));
+        ModifierInterface::Options(!_txn->writesAreReplicated(), shouldValidate, collator));
 
     return _driver.parse(_request->getUpdates(), _request->isMulti());
 }
