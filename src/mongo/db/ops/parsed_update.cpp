@@ -50,7 +50,7 @@ Status ParsedUpdate::parseRequest() {
     invariant(_request->getProj().isEmpty() || _request->shouldReturnAnyDocs());
 
     // If the request has no collation, is a simple ID query, and does not require array match
-    // details, we can use the id hash and do not need to construct a CanonicalQuery.
+    // details, we can use the idhack and do not need to construct a CanonicalQuery.
     // TODO SERVER-23611: Create decision logic for idhack when the query has no collation, but
     // there may be a collection default collation.
     if (_request->getCollation().isEmpty() &&
@@ -63,6 +63,7 @@ Status ParsedUpdate::parseRequest() {
         if (!_driver.needMatchDetails()) {
             return Status::OK();
         }
+        return parseQueryToCQ();
     }
     Status status = parseQueryToCQ();
     if (!status.isOK()) {
