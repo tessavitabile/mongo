@@ -44,6 +44,7 @@
 #include "mongo/db/query/find_common.h"
 #include "mongo/db/query/getmore_request.h"
 #include "mongo/executor/task_executor_pool.h"
+#include "mongo/platform/overflow_arithmetic.h"
 #include "mongo/rpc/metadata/server_selection_metadata.h"
 #include "mongo/s/catalog/catalog_cache.h"
 #include "mongo/s/chunk_manager.h"
@@ -80,7 +81,12 @@ std::unique_ptr<LiteParsedQuery> transformQueryForShards(const LiteParsedQuery& 
     // If there is a limit, we forward the sum of the limit and the skip.
     boost::optional<long long> newLimit;
     if (lpq.getLimit()) {
-        newLimit = *lpq.getLimit() + lpq.getSkip().value_or(0);
+        long long newLimitValue;
+        uassert(
+            40108,
+            "sum of limit and skip cannot be represented as a 64-bit integer",
+            !mongoSignedAddOverflow64(*lpq.getLimit(), lpq.getSkip().value_or(0), &newLimitValue));
+        newLimit = newLimitValue;
     }
 
     // Similarly, if nToReturn is set, we forward the sum of nToReturn and the skip.
@@ -88,9 +94,19 @@ std::unique_ptr<LiteParsedQuery> transformQueryForShards(const LiteParsedQuery& 
     if (lpq.getNToReturn()) {
         // !wantMore and ntoreturn mean the same as !wantMore and limit, so perform the conversion.
         if (!lpq.wantMore()) {
-            newLimit = *lpq.getNToReturn() + lpq.getSkip().value_or(0);
+            long long newLimitValue;
+            uassert(40109,
+                    "sum of ntoreturn and skip cannot be represented as a 64-bit integer",
+                    !mongoSignedAddOverflow64(
+                        *lpq.getNToReturn(), lpq.getSkip().value_or(0), &newLimitValue));
+            newLimit = newLimitValue;
         } else {
-            newNToReturn = *lpq.getNToReturn() + lpq.getSkip().value_or(0);
+            long long newNToReturnValue;
+            uassert(40110,
+                    "sum of ntoreturn and skip cannot be represented as a 64-bit integer",
+                    !mongoSignedAddOverflow64(
+                        *lpq.getNToReturn(), lpq.getSkip().value_or(0), &newNToReturnValue));
+            newNToReturn = newNToReturnValue;
         }
     }
 
