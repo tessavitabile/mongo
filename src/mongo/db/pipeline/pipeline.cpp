@@ -38,12 +38,14 @@
 #include "mongo/db/catalog/document_validation.h"
 #include "mongo/db/commands.h"
 #include "mongo/db/jsobj.h"
-#include "mongo/db/query/collation/collation_serializer.h"
+#include "mongo/db/operation_context.h"
 #include "mongo/db/pipeline/accumulator.h"
 #include "mongo/db/pipeline/document.h"
 #include "mongo/db/pipeline/document_source.h"
 #include "mongo/db/pipeline/expression.h"
 #include "mongo/db/pipeline/expression_context.h"
+#include "mongo/db/query/collation/collation_serializer.h"
+#include "mongo/db/query/collation/collator_factory_interface.h"
 #include "mongo/db/repl/read_concern_args.h"
 #include "mongo/util/mongoutils/str.h"
 
@@ -103,8 +105,16 @@ intrusive_ptr<Pipeline> Pipeline::parseCommand(string& errmsg,
             continue;
         }
 
-        // ignore collation since it's handled in PipelineCommand::run().
         if (str::equals(pFieldName, collationName)) {
+            uassert(40108,
+                    str::stream() << "collation must be an object, not a "
+                                  << typeName(cmdElement.type()),
+                    cmdElement.type() == BSONType::Object);
+            auto statusWithCollator =
+                CollatorFactoryInterface::get(pCtx->opCtx->getServiceContext())
+                    ->makeFromBSON(cmdElement.Obj());
+            uassertStatusOK(statusWithCollator.getStatus());
+            pCtx->collator.reset(statusWithCollator.getValue().release());
             continue;
         }
 

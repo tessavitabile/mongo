@@ -40,7 +40,7 @@
 #include "mongo/db/db_raii.h"
 #include "mongo/db/exec/pipeline_proxy.h"
 #include "mongo/db/exec/working_set_common.h"
-#include "mongo/db/operation_context.h"
+#include "mongo/db/service_context.h"
 #include "mongo/db/pipeline/accumulator.h"
 #include "mongo/db/pipeline/document.h"
 #include "mongo/db/pipeline/document_source.h"
@@ -48,7 +48,6 @@
 #include "mongo/db/pipeline/expression_context.h"
 #include "mongo/db/pipeline/pipeline.h"
 #include "mongo/db/pipeline/pipeline_d.h"
-#include "mongo/db/query/collation/collator_factory_interface.h"
 #include "mongo/db/query/cursor_response.h"
 #include "mongo/db/query/find_common.h"
 #include "mongo/db/query/get_executor.h"
@@ -200,22 +199,6 @@ public:
 
         intrusive_ptr<ExpressionContext> pCtx = new ExpressionContext(txn, nss);
         pCtx->tempDir = storageGlobalParams.dbpath + "/_tmp";
-
-        // Set the collator on pCtx.
-        BSONElement collation = cmdObj["collation"];
-        if (!collation.eoo()) {
-            if (collation.type() != BSONType::Object) {
-                errmsg = str::stream() << "collation must be an object, found "
-                                       << typeName(collation.type());
-                return false;
-            }
-            auto statusWithCollator = CollatorFactoryInterface::get(txn->getServiceContext())
-                                          ->makeFromBSON(collation.Obj());
-            if (!statusWithCollator.getStatus().isOK()) {
-                return appendCommandStatus(result, statusWithCollator.getStatus());
-            }
-            pCtx->collator.reset(statusWithCollator.getValue().release());
-        }
 
         /* try to parse the command; if this fails, then we didn't run */
         intrusive_ptr<Pipeline> pPipeline = Pipeline::parseCommand(errmsg, cmdObj, pCtx);
