@@ -241,11 +241,34 @@ PlanStage* buildStages(OperationContext* txn,
         return nearStage;
     } else if (STAGE_GEO_NEAR_2DSPHERE == root->getType()) {
         const GeoNear2DSphereNode* node = static_cast<const GeoNear2DSphereNode*>(root);
-
+        /*
+        MatchExpression* filter = node->filter.get();
+        if (filter) {
+        log() << "FILTER";
+        log() << std::to_string(filter->matchType());
+        if (filter->matchType() == MatchExpression::MatchType::GT) {
+            log() << "GT";
+            const ComparisonMatchExpression* gtfilter = static_cast<const ComparisonMatchExpression*>(filter);
+            if (gtfilter->getCollator()) {
+                log() << "HAS COLLATOR";
+            } else {
+                log() << "NO COLLATOR";
+            }
+        }
+        } else {
+            log() << "NO FILTER";
+        }
+    */
+        if (cq.getCollator()) {
+            log() << "CQ HAS COLLATOR";
+        } else {
+            log() << "CQ DOES NOT HAVE COLLATOR";
+        }
         GeoNearParams params;
         params.nearQuery = node->nq;
         params.baseBounds = node->baseBounds;
         params.filter = node->filter.get();
+        params.collator = cq.getCollator();
         params.addPointMeta = node->addPointMeta;
         params.addDistMeta = node->addDistMeta;
 

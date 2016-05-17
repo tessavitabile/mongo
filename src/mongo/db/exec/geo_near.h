@@ -46,11 +46,13 @@ namespace mongo {
  * Generic parameters for a GeoNear search
  */
 struct GeoNearParams {
-    GeoNearParams() : filter(NULL), nearQuery(NULL), addPointMeta(false), addDistMeta(false) {}
+    GeoNearParams() : filter(NULL), collator(NULL), nearQuery(NULL), addPointMeta(false), addDistMeta(false) {}
 
     // MatchExpression to apply to the index keys and fetched documents
     // Not owned here, owned by solution nodes
     MatchExpression* filter;
+    // Null if this stage compares strings according to simple binary compare. If non-null, represents the collator used to compare strings.
+    const CollatorInterface* collator;
     // Index scan bounds, not including the geo bounds
     IndexBounds baseBounds;
 
