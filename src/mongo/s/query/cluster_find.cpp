@@ -77,15 +77,18 @@ static const int kPerDocumentOverheadBytesUpperBound = 10;
  * Given the LiteParsedQuery 'lpq' being executed by mongos, returns a copy of the query which is
  * suitable for forwarding to the targeted hosts.
  */
-std::unique_ptr<LiteParsedQuery> transformQueryForShards(const LiteParsedQuery& lpq) {
+StatusWith<std::unique_ptr<LiteParsedQuery>> transformQueryForShards(const LiteParsedQuery& lpq) {
     // If there is a limit, we forward the sum of the limit and the skip.
     boost::optional<long long> newLimit;
     if (lpq.getLimit()) {
         long long newLimitValue;
-        uassert(
-            40108,
-            "sum of limit and skip cannot be represented as a 64-bit integer",
-            !mongoSignedAddOverflow64(*lpq.getLimit(), lpq.getSkip().value_or(0), &newLimitValue));
+        if (mongoSignedAddOverflow64(*lpq.getLimit(), lpq.getSkip().value_or(0), &newLimitValue)) {
+            return Status(
+                ErrorCodes::Overflow,
+                str::stream()
+                    << "sum of limit and skip cannot be represented as a 64-bit integer, limit: "
+                    << *lpq.getLimit() << ", skip: " << lpq.getSkip().value_or(0));
+        }
         newLimit = newLimitValue;
     }
 
@@ -95,17 +98,25 @@ std::unique_ptr<LiteParsedQuery> transformQueryForShards(const LiteParsedQuery& 
         // !wantMore and ntoreturn mean the same as !wantMore and limit, so perform the conversion.
         if (!lpq.wantMore()) {
             long long newLimitValue;
-            uassert(40109,
-                    "sum of ntoreturn and skip cannot be represented as a 64-bit integer",
-                    !mongoSignedAddOverflow64(
-                        *lpq.getNToReturn(), lpq.getSkip().value_or(0), &newLimitValue));
+            if (mongoSignedAddOverflow64(
+                    *lpq.getNToReturn(), lpq.getSkip().value_or(0), &newLimitValue)) {
+                return Status(ErrorCodes::Overflow,
+                              str::stream()
+                                  << "sum of ntoreturn and skip cannot be represented as a 64-bit "
+                                     "integer, ntoreturn: " << *lpq.getNToReturn()
+                                  << ", skip: " << lpq.getSkip().value_or(0));
+            }
             newLimit = newLimitValue;
         } else {
             long long newNToReturnValue;
-            uassert(40110,
-                    "sum of ntoreturn and skip cannot be represented as a 64-bit integer",
-                    !mongoSignedAddOverflow64(
-                        *lpq.getNToReturn(), lpq.getSkip().value_or(0), &newNToReturnValue));
+            if (mongoSignedAddOverflow64(
+                    *lpq.getNToReturn(), lpq.getSkip().value_or(0), &newNToReturnValue)) {
+                return Status(ErrorCodes::Overflow,
+                              str::stream()
+                                  << "sum of limit and ntoreturn cannot be represented as a 64-bit "
+                                     "integer, ntoreturn: " << *lpq.getNToReturn()
+                                  << ", skip: " << lpq.getSkip().value_or(0));
+            }
             newNToReturn = newNToReturnValue;
         }
     }
@@ -181,7 +192,10 @@ StatusWith<CursorId> runQueryWithoutRetrying(OperationContext* txn,
     // Tailable cursors can't have a sort, which should have already been validated.
     invariant(params.sort.isEmpty() || !params.isTailable);
 
-    const auto lpqToForward = transformQueryForShards(query.getParsed());
+    const auto statusWithLPQ = transformQueryForShards(query.getParsed());
+    if (!statusWithLPQ.isOK()) {
+        return statusWithLPQ.getStatus();
+    }
 
     // Use read pref to target a particular host from each shard. Also construct the find command
     // that we will forward to each shard.
@@ -190,7 +204,7 @@ StatusWith<CursorId> runQueryWithoutRetrying(OperationContext* txn,
 
         // Build the find command, and attach shard version if necessary.
         BSONObjBuilder cmdBuilder;
-        lpqToForward->asFindCommand(&cmdBuilder);
+        statusWithLPQ.getValue()->asFindCommand(&cmdBuilder);
 
         if (chunkManager) {
             ChunkVersion version(chunkManager->getVersion(shard->getId()));

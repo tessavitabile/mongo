@@ -78,6 +78,15 @@
     assert.eq(cmdRes.cursor.firstBatch.length, 1);
     assert.eq(cmdRes.cursor.firstBatch[0], {_id: -5, a: 8});
 
+    // Find where adding limit/ntoreturn and skip overflows.
+    var i = new NumberLong('9223372036854775807');
+    cmdRes = db.runCommand({find: coll.getName(), skip: i, limit: i});
+    assert.commandFailed(cmdRes);
+    cmdRes = db.runCommand({find: coll.getName(), skip: i, ntoreturn: i});
+    assert.commandFailed(cmdRes);
+    cmdRes = db.runCommand({find: coll.getName(), skip: i, ntoreturn: i, singleBatch: true});
+    assert.commandFailed(cmdRes);
+
     // A predicate with $where.
     cmdRes = db.runCommand({find: coll.getName(), filter: {$where: "this._id == 5"}});
     assert.commandWorked(cmdRes);
