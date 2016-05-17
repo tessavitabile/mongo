@@ -113,7 +113,7 @@ StatusWith<std::unique_ptr<LiteParsedQuery>> transformQueryForShards(const LiteP
                     *lpq.getNToReturn(), lpq.getSkip().value_or(0), &newNToReturnValue)) {
                 return Status(ErrorCodes::Overflow,
                               str::stream()
-                                  << "sum of limit and ntoreturn cannot be represented as a 64-bit "
+                                  << "sum of ntoreturn and skip cannot be represented as a 64-bit "
                                      "integer, ntoreturn: " << *lpq.getNToReturn()
                                   << ", skip: " << lpq.getSkip().value_or(0));
             }
