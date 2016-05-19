@@ -45,6 +45,12 @@
     // TODO SERVER-23791: Test that queries with matching collations can use these indices, and that
     // the indices contain collator-generated comparison keys rather than the verbatim indexed
     // strings.
+    coll.drop();
+    assert.commandWorked(coll.ensureIndex({a: 1}, {collation: {locale: "en_US", strength: 2}}));
+    assert.writeOK(coll.insert({a: "abc"}));
+    assert.eq(0, coll.find({a: "ABC"}).count());
+    assert.eq(0, coll.find({a: "ABC"}).collation({locale: "en_US"}).count());
+    assert.eq(1, coll.find({a: "ABC"}).collation({locale: "en_US", strength: 2}).count());
 
     //
     // Test helpers for operations that accept a collation.

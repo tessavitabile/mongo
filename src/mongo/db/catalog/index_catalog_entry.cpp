@@ -122,12 +122,15 @@ void IndexCatalogEntry::init(OperationContext* txn, IndexAccessMethod* accessMet
     }
 
     if (BSONElement collationElement = _descriptor->getInfoElement("collation")) {
+        log() << "INDEX HAS COLLATION";
         invariant(collationElement.isABSONObj());
         BSONObj collation = collationElement.Obj();
         auto statusWithCollator =
             CollatorFactoryInterface::get(txn->getServiceContext())->makeFromBSON(collation);
         invariantOK(statusWithCollator.getStatus());
         _collator = std::move(statusWithCollator.getValue());
+    } else {
+        log() << "INDEX DOES NOT HAVE COLLATION";
     }
 }
 

@@ -142,7 +142,8 @@ void fillOutPlannerParams(OperationContext* txn,
                                                     desc->unique(),
                                                     desc->indexName(),
                                                     ice->getFilterExpression(),
-                                                    desc->infoObj()));
+                                                    desc->infoObj(),
+                                                    ice->getCollator()));
     }
 
     // If query supports index filters, filter params.indices by indices in query settings.
@@ -1322,7 +1323,8 @@ StatusWith<unique_ptr<PlanExecutor>> getExecutorDistinct(OperationContext* txn,
                                                        desc->unique(),
                                                        desc->indexName(),
                                                        ice->getFilterExpression(),
-                                                       desc->infoObj()));
+                                                       desc->infoObj(),
+                                                       ice->getCollator()));
         }
     }
 

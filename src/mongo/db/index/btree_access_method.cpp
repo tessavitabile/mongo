@@ -26,6 +26,7 @@
 *    it in the license file.
 */
 
+#define MONGO_LOG_DEFAULT_COMPONENT ::mongo::logger::LogComponent::kQuery
 #include "mongo/db/index/btree_access_method.h"
 
 #include <vector>
@@ -33,6 +34,7 @@
 #include "mongo/base/status.h"
 #include "mongo/db/jsobj.h"
 #include "mongo/db/keypattern.h"
+#include "mongo/util/log.h"
 
 namespace mongo {
 
@@ -55,6 +57,11 @@ BtreeAccessMethod::BtreeAccessMethod(IndexCatalogEntry* btreeState, SortedDataIn
     if (0 == _descriptor->version()) {
         _keyGenerator.reset(new BtreeKeyGeneratorV0(fieldNames, fixed, _descriptor->isSparse()));
     } else if (1 == _descriptor->version()) {
+        if (btreeState->getCollator()) {
+            log() << "ICE HAS COLLATOR";
+        } else {
+            log() << "ICE DOES NOT HAVE COLLATOR";
+        }
         _keyGenerator.reset(new BtreeKeyGeneratorV1(
             fieldNames, fixed, _descriptor->isSparse(), btreeState->getCollator()));
     } else {
@@ -66,6 +73,11 @@ void BtreeAccessMethod::getKeys(const BSONObj& obj,
                                 BSONObjSet* keys,
                                 MultikeyPaths* multikeyPaths) const {
     _keyGenerator->getKeys(obj, keys, multikeyPaths);
+    log() << "CONSTRUCTED KEY";
+    log() << obj;
+    for (auto&& key : *keys) {
+        log() << key;
+    }
 }
 
 }  // namespace mongo
