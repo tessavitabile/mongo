@@ -42,7 +42,7 @@ assert.eq(
 // Number of shapes should match queries executed by multi-plan runner.
 var shapes = getShapes();
 assert.eq(1, shapes.length, 'unexpected number of shapes in planCacheListQueryShapes result');
-assert.eq({query: {a: 1, b: 1}, sort: {a: -1}, projection: {_id: 1, a: 1}},
+assert.eq({query: {a: 1, b: 1}, sort: {a: -1}, projection: {_id: 1, a: 1}, collation: {}},
           shapes[0],
           'unexpected query shape returned from planCacheListQueryShapes');
 

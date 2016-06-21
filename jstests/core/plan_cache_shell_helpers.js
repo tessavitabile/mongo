@@ -112,7 +112,7 @@ assert.eq(getPlans(queryB, {}, {}),
 //     projection: <projection>,
 //     sort: <sort>
 // }
-var shapeB = {query: queryB, projection: projectionB, sort: sortC};
+var shapeB = {query: queryB, projection: projectionB, sort: sortC, collation: {}};
 assert.eq(getPlans(queryB, sortC, projectionB),
           planCache.getPlansByQuery(shapeB),
           'collection.getPlanCache().getPlansByQuery() did not accept query shape object');
@@ -176,7 +176,7 @@ assert.eq(0, getShapes().length, 'plan cache not empty');
 assert.eq(1, t.find(queryB).sort(sortC).itcount(), 'unexpected document count');
 
 // Clear using query shape object.
-planCache.clearPlansByQuery({query: queryB, projection: {}, sort: sortC});
+planCache.clearPlansByQuery({query: queryB, projection: {}, sort: sortC, collation: {}});
 assert.eq(0,
           getShapes().length,
           'collection.getPlanCache().clearPlansByQuery() did not accept query shape object');

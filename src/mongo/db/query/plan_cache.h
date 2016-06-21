@@ -201,6 +201,7 @@ public:
     BSONObj query;
     BSONObj sort;
     BSONObj projection;
+    BSONObj collation;
 
     // The number of work cycles taken to decide on a winning plan when the plan was first
     // cached.
@@ -250,6 +251,7 @@ public:
     BSONObj query;
     BSONObj sort;
     BSONObj projection;
+    BSONObj collation;
 
     //
     // Performance stats
@@ -397,6 +399,7 @@ private:
     void encodeKeyForMatch(const MatchExpression* tree, StringBuilder* keyBuilder) const;
     void encodeKeyForSort(const BSONObj& sortObj, StringBuilder* keyBuilder) const;
     void encodeKeyForProj(const BSONObj& projObj, StringBuilder* keyBuilder) const;
+    void encodeKeyForCollation(const BSONObj& collationObj, StringBuilder* keyBuilder) const;
 
     LRUKeyValue<PlanCacheKey, PlanCacheEntry> _cache;
 

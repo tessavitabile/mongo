@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <boost/optional.hpp>
 #include <vector>
 
 #include "mongo/base/disallow_copying.h"
@@ -37,10 +38,11 @@
 namespace mongo {
 
 class BSONObj;
+class CollatorInterface;
 class MatchExpression;
 struct IndexEntry;
 
-using IndexabilityDiscriminator = stdx::function<bool(const MatchExpression* me)>;
+using IndexabilityDiscriminator = stdx::function<boost::optional<bool>(const MatchExpression* me)>;
 using IndexabilityDiscriminators = std::vector<IndexabilityDiscriminator>;
 
 /**
@@ -92,6 +94,17 @@ private:
      * {$gt: 0}}.  The former is compatible with this index, but the latter is not compatible.
      */
     void processPartialIndex(const MatchExpression* filterExpr);
+
+    /**
+     * Adds a discriminator for the index with the given key pattern and collator to
+     * '_pathDiscriminatorsMap'.
+     *
+     * If the index and query have the same collation, this discriminator returns boost::none,
+     * indicating that we do not need to keep track of indexability for this index and query shape.
+     * If they have different collators, the discriminator returns false if the expression contains
+     * string comparison and true otherwise.
+     */
+    void processIndexCollation(const BSONObj& keyPattern, const CollatorInterface* collator);
 
     using PathDiscriminatorsMap = StringMap<IndexabilityDiscriminators>;
     PathDiscriminatorsMap _pathDiscriminatorsMap;

@@ -225,19 +225,6 @@ Status CanonicalQuery::init(std::unique_ptr<QueryRequest> qr,
 
 namespace {
 
-bool isComparisonMatchExpression(const MatchExpression* expr) {
-    switch (expr->matchType()) {
-        case MatchExpression::LT:
-        case MatchExpression::LTE:
-        case MatchExpression::EQ:
-        case MatchExpression::GTE:
-        case MatchExpression::GT:
-            return true;
-        default:
-            return false;
-    }
-}
-
 /**
  * Recursively set the collator on the MatchExpression 'root'. Currently, only
  * ComparisonMatchExpression and InMatchExpression are collation-aware, so we ignore other leaf
@@ -247,7 +234,7 @@ bool isComparisonMatchExpression(const MatchExpression* expr) {
  * adding new match expressions that can do string comparisons.
  */
 void setCollatorOnMatchExpression(MatchExpression* root, const CollatorInterface* collator) {
-    if (isComparisonMatchExpression(root)) {
+    if (ComparisonMatchExpression::isComparisonMatchExpression(root)) {
         auto compExpr = static_cast<ComparisonMatchExpression*>(root);
         compExpr->setCollator(collator);
     } else if (root->matchType() == MatchExpression::MATCH_IN) {
@@ -558,6 +545,9 @@ std::string CanonicalQuery::toString() const {
     ss << "Tree: " << _root->toString();
     ss << "Sort: " << _qr->getSort().toString() << '\n';
     ss << "Proj: " << _qr->getProj().toString() << '\n';
+    if (!_qr->getCollation().isEmpty()) {
+        ss << "Collation: " << _qr->getCollation().toString() << '\n';
+    }
     return ss;
 }
 
@@ -565,6 +555,10 @@ std::string CanonicalQuery::toStringShort() const {
     str::stream ss;
     ss << "query: " << _qr->getFilter().toString() << " sort: " << _qr->getSort().toString()
        << " projection: " << _qr->getProj().toString();
+
+    if (!_qr->getCollation().isEmpty()) {
+        ss << " collation: " << _qr->getCollation().toString();
+    }
 
     if (_qr->getBatchSize()) {
         ss << " batchSize: " << *_qr->getBatchSize();

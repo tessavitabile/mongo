@@ -35,6 +35,7 @@
 #include "mongo/db/matcher/expression.h"
 #include "mongo/db/matcher/expression_algo.h"
 #include "mongo/db/matcher/expression_leaf.h"
+#include "mongo/db/query/collation/collator_interface.h"
 #include "mongo/db/query/index_entry.h"
 #include "mongo/stdx/memory.h"
 #include <memory>
@@ -72,6 +73,41 @@ void PlanCacheIndexabilityState::processPartialIndex(const MatchExpression* filt
     }
 }
 
+void PlanCacheIndexabilityState::processIndexCollation(const BSONObj& keyPattern,
+                                                       const CollatorInterface* collator) {
+    for (BSONElement elem : keyPattern) {
+        _pathDiscriminatorsMap[elem.fieldNameStringData()].push_back(
+            [collator](const MatchExpression* queryExpr) -> boost::optional<bool> {
+                if (ComparisonMatchExpression::isComparisonMatchExpression(queryExpr)) {
+                    const auto* queryExprComparison =
+                        static_cast<const ComparisonMatchExpression*>(queryExpr);
+                    if (CollatorInterface::collatorsMatch(queryExprComparison->getCollator(),
+                                                          collator)) {
+                        return boost::none;
+                    }
+                    const auto dataType = queryExprComparison->getData().type();
+                    return (dataType != BSONType::String) && (dataType != BSONType::Object) &&
+                        (dataType != BSONType::Array);
+                } else if (queryExpr->matchType() == MatchExpression::MATCH_IN) {
+                    const auto* queryExprIn = static_cast<const InMatchExpression*>(queryExpr);
+                    if (CollatorInterface::collatorsMatch(queryExprIn->getCollator(), collator)) {
+                        return boost::none;
+                    }
+                    for (const auto& equality : queryExprIn->getEqualities()) {
+                        if ((equality.type() == BSONType::String) ||
+                            (equality.type() == BSONType::Object) ||
+                            (equality.type() == BSONType::Array)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                } else {
+                    return boost::none;
+                }
+            });
+    }
+}
+
 namespace {
 const IndexabilityDiscriminators emptyDiscriminators;
 }  // namespace
@@ -95,6 +131,7 @@ void PlanCacheIndexabilityState::updateDiscriminators(const std::vector<IndexEnt
         if (idx.filterExpr) {
             processPartialIndex(idx.filterExpr);
         }
+        processIndexCollation(idx.keyPattern, idx.collator);
     }
 }
 

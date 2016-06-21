@@ -36,6 +36,7 @@
 #include "mongo/client/dbclientinterface.h"  // For QueryOption_foobar
 #include "mongo/db/matcher/expression_array.h"
 #include "mongo/db/matcher/expression_geo.h"
+#include "mongo/db/query/collation/collator_interface.h"
 #include "mongo/db/query/plan_ranker.h"
 #include "mongo/db/query/query_knobs.h"
 #include "mongo/db/query/query_solution.h"
@@ -57,6 +58,7 @@ const char kEncodeChildrenEnd = ']';
 const char kEncodeChildrenSeparator = ',';
 const char kEncodeSortSection = '~';
 const char kEncodeProjectionSection = '|';
+const char kEncodeCollationSection = '#';
 
 /**
  * Encode user-provided string. Cache key delimiters seen in the
@@ -73,6 +75,7 @@ void encodeUserString(StringData s, StringBuilder* keyBuilder) {
             case kEncodeChildrenSeparator:
             case kEncodeSortSection:
             case kEncodeProjectionSection:
+            case kEncodeCollationSection:
             case '\\':
                 *keyBuilder << '\\';
             // Fall through to default case.
@@ -309,6 +312,7 @@ CachedSolution::CachedSolution(const PlanCacheKey& key, const PlanCacheEntry& en
       query(entry.query.getOwned()),
       sort(entry.sort.getOwned()),
       projection(entry.projection.getOwned()),
+      collation(entry.collation.getOwned()),
       decisionWorks(entry.decision->stats[0]->common.works) {
     // CachedSolution should not having any references into
     // cache entry. All relevant data should be cloned/copied.
@@ -369,6 +373,7 @@ PlanCacheEntry* PlanCacheEntry::clone() const {
     entry->query = query.getOwned();
     entry->sort = sort.getOwned();
     entry->projection = projection.getOwned();
+    entry->collation = collation.getOwned();
 
     // Copy performance stats.
     for (size_t i = 0; i < feedback.size(); ++i) {
@@ -383,6 +388,7 @@ PlanCacheEntry* PlanCacheEntry::clone() const {
 std::string PlanCacheEntry::toString() const {
     return str::stream() << "(query: " << query.toString() << ";sort: " << sort.toString()
                          << ";projection: " << projection.toString()
+                         << ";collation: " << collation.toString()
                          << ";solutions: " << plannerData.size() << ")";
 }
 
@@ -506,7 +512,10 @@ void PlanCache::encodeKeyForMatch(const MatchExpression* tree, StringBuilder* ke
         *keyBuilder << kEncodeDiscriminatorsBegin;
         // For each discriminator on this path, append the character '0' or '1'.
         for (const IndexabilityDiscriminator& discriminator : discriminators) {
-            *keyBuilder << discriminator(tree);
+            auto indexable = discriminator(tree);
+            if (indexable) {
+                *keyBuilder << *indexable;
+            }
         }
         *keyBuilder << kEncodeDiscriminatorsEnd;
     }
@@ -613,6 +622,19 @@ void PlanCache::encodeKeyForProj(const BSONObj& projObj, StringBuilder* keyBuild
     }
 }
 
+/**
+ * Encodes collation into cache key.
+ * 'collationObj' should be the serialized spec of a CollatorInterface.
+ */
+void PlanCache::encodeKeyForCollation(const BSONObj& collationObj,
+                                      StringBuilder* keyBuilder) const {
+    invariant(!collationObj.isEmpty());
+
+    *keyBuilder << kEncodeCollationSection;
+
+    encodeUserString(collationObj.toString(), keyBuilder);
+}
+
 Status PlanCache::add(const CanonicalQuery& query,
                       const std::vector<QuerySolution*>& solns,
                       PlanRankingDecision* why) {
@@ -639,6 +661,9 @@ Status PlanCache::add(const CanonicalQuery& query,
     const QueryRequest& qr = query.getQueryRequest();
     entry->query = qr.getFilter().getOwned();
     entry->sort = qr.getSort().getOwned();
+    if (query.getCollator()) {
+        entry->collation = query.getCollator()->getSpec().toBSON();
+    }
 
     // Strip projections on $-prefixed fields, as these are added by internal callers of the query
     // system and are not considered part of the user projection.
@@ -718,6 +743,9 @@ PlanCacheKey PlanCache::computeKey(const CanonicalQuery& cq) const {
     encodeKeyForMatch(cq.root(), &keyBuilder);
     encodeKeyForSort(cq.getQueryRequest().getSort(), &keyBuilder);
     encodeKeyForProj(cq.getQueryRequest().getProj(), &keyBuilder);
+    if (cq.getCollator()) {
+        encodeKeyForCollation(cq.getCollator()->getSpec().toBSON(), &keyBuilder);
+    }
     return keyBuilder.str();
 }
 

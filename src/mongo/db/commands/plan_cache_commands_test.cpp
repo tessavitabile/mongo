@@ -88,6 +88,10 @@ std::vector<BSONObj> getShapes(const PlanCache& planCache) {
         BSONElement projectionElt = obj.getField("projection");
         ASSERT_TRUE(projectionElt.isABSONObj());
 
+        // collation
+        BSONElement collationElt = obj.getField("collation");
+        ASSERT_TRUE(collationElt.isABSONObj());
+
         // All fields OK. Append to vector.
         shapes.push_back(obj.getOwned());
     }
@@ -150,6 +154,7 @@ TEST(PlanCacheCommandsTest, planCacheListQueryShapesOneKey) {
     ASSERT_EQUALS(shapes[0].getObjectField("query"), cq->getQueryObj());
     ASSERT_EQUALS(shapes[0].getObjectField("sort"), cq->getQueryRequest().getSort());
     ASSERT_EQUALS(shapes[0].getObjectField("projection"), cq->getQueryRequest().getProj());
+    ASSERT_EQUALS(shapes[0].getObjectField("collation"), cq->getQueryRequest().getCollation());
 }
 
 /**
@@ -201,6 +206,14 @@ TEST(PlanCacheCommandsTest, Canonicalize) {
     // Sort needs to be an object
     ASSERT_NOT_OK(PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, sort: 1}"))
                       .getStatus());
+    // Projection needs to be an object.
+    ASSERT_NOT_OK(
+        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, projection: 1}"))
+            .getStatus());
+    // Collation needs to be an object.
+    ASSERT_NOT_OK(
+        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, collation: 1}"))
+            .getStatus());
     // Bad query (invalid sort order)
     ASSERT_NOT_OK(
         PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, sort: {a: 0}}"))
@@ -247,6 +260,13 @@ TEST(PlanCacheCommandsTest, Canonicalize) {
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> projectionQuery = std::move(statusWithCQ.getValue());
     ASSERT_NOT_EQUALS(planCache.computeKey(*query), planCache.computeKey(*projectionQuery));
+
+    // Query with collation should generate different key from query without collation.
+    statusWithCQ = PlanCacheCommand::canonicalize(
+        &txn, nss.ns(), fromjson("{query: {a: 1, b: 1}, collation: {locale: 'en_US'}}"));
+    ASSERT_OK(statusWithCQ.getStatus());
+    unique_ptr<CanonicalQuery> collationQuery = std::move(statusWithCQ.getValue());
+    ASSERT_NOT_EQUALS(planCache.computeKey(*query), planCache.computeKey(*collationQuery));
 }
 
 /**
@@ -269,6 +289,9 @@ TEST(PlanCacheCommandsTest, planCacheClearInvalidParameter) {
     // Projection present without query is an error.
     ASSERT_NOT_OK(PlanCacheClear::clear(
         &txn, &planCache, nss.ns(), fromjson("{projection: {_id: 0, a: 1}}")));
+    // Collation present without query is an error.
+    ASSERT_NOT_OK(PlanCacheClear::clear(
+        &txn, &planCache, nss.ns(), fromjson("{collation: {locale: 'en_US'}}")));
 }
 
 TEST(PlanCacheCommandsTest, planCacheClearUnknownKey) {
@@ -310,10 +333,14 @@ TEST(PlanCacheCommandsTest, planCacheClearOneKey) {
     ASSERT_EQUALS(shapesBefore.size(), 2U);
     BSONObj shapeA = BSON(
         "query" << cqA->getQueryObj() << "sort" << cqA->getQueryRequest().getSort() << "projection"
-                << cqA->getQueryRequest().getProj());
+                << cqA->getQueryRequest().getProj()
+                << "collation"
+                << cqA->getQueryRequest().getCollation());
     BSONObj shapeB = BSON(
         "query" << cqB->getQueryObj() << "sort" << cqB->getQueryRequest().getSort() << "projection"
-                << cqB->getQueryRequest().getProj());
+                << cqB->getQueryRequest().getProj()
+                << "collation"
+                << cqB->getQueryRequest().getCollation());
     ASSERT_TRUE(std::find(shapesBefore.begin(), shapesBefore.end(), shapeA) != shapesBefore.end());
     ASSERT_TRUE(std::find(shapesBefore.begin(), shapesBefore.end(), shapeB) != shapesBefore.end());
 
@@ -370,11 +397,14 @@ BSONObj getPlan(const BSONElement& elt) {
 vector<BSONObj> getPlans(const PlanCache& planCache,
                          const BSONObj& query,
                          const BSONObj& sort,
-                         const BSONObj& projection) {
+                         const BSONObj& projection,
+                         const BSONObj& collation) {
     OperationContextNoop txn;
 
     BSONObjBuilder bob;
-    BSONObj cmdObj = BSON("query" << query << "sort" << sort << "projection" << projection);
+    BSONObj cmdObj =
+        BSON("query" << query << "sort" << sort << "projection" << projection << "collation"
+                     << collation);
     ASSERT_OK(PlanCacheListPlans::list(&txn, planCache, nss.ns(), cmdObj, &bob));
     BSONObj resultObj = bob.obj();
     BSONElement plansElt = resultObj.getField("plans");
@@ -433,7 +463,8 @@ TEST(PlanCacheCommandsTest, planCacheListPlansOnlyOneSolutionTrue) {
     vector<BSONObj> plans = getPlans(planCache,
                                      cq->getQueryObj(),
                                      cq->getQueryRequest().getSort(),
-                                     cq->getQueryRequest().getProj());
+                                     cq->getQueryRequest().getProj(),
+                                     cq->getQueryRequest().getCollation());
     ASSERT_EQUALS(plans.size(), 1U);
 }
 
@@ -462,7 +493,8 @@ TEST(PlanCacheCommandsTest, planCacheListPlansOnlyOneSolutionFalse) {
     vector<BSONObj> plans = getPlans(planCache,
                                      cq->getQueryObj(),
                                      cq->getQueryRequest().getSort(),
-                                     cq->getQueryRequest().getProj());
+                                     cq->getQueryRequest().getProj(),
+                                     cq->getQueryRequest().getCollation());
     ASSERT_EQUALS(plans.size(), 2U);
 }
 

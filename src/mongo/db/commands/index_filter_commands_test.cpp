@@ -83,6 +83,12 @@ vector<BSONObj> getFilters(const QuerySettings& querySettings) {
         BSONElement projectionElt = obj.getField("projection");
         ASSERT_TRUE(projectionElt.isABSONObj());
 
+        // collation (optional)
+        BSONElement collationElt = obj.getField("collation");
+        if (!collationElt.eoo()) {
+            ASSERT_TRUE(collationElt.isABSONObj());
+        }
+
         // indexes
         BSONElement indexesElt = obj.getField("indexes");
         ASSERT_EQUALS(indexesElt.type(), mongo::Array);
@@ -117,12 +123,14 @@ void addQueryShapeToPlanCache(OperationContext* txn,
                               PlanCache* planCache,
                               const char* queryStr,
                               const char* sortStr,
-                              const char* projectionStr) {
+                              const char* projectionStr,
+                              const char* collationStr) {
     // Create canonical query.
     auto qr = stdx::make_unique<QueryRequest>(nss);
     qr->setFilter(fromjson(queryStr));
     qr->setSort(fromjson(sortStr));
     qr->setProj(fromjson(projectionStr));
+    qr->setCollation(fromjson(collationStr));
     auto statusWithCQ =
         CanonicalQuery::canonicalize(txn, std::move(qr), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithCQ.getStatus());
@@ -142,7 +150,8 @@ void addQueryShapeToPlanCache(OperationContext* txn,
 bool planCacheContains(const PlanCache& planCache,
                        const char* queryStr,
                        const char* sortStr,
-                       const char* projectionStr) {
+                       const char* projectionStr,
+                       const char* collationStr) {
     QueryTestServiceContext serviceContext;
     auto txn = serviceContext.makeOperationContext();
 
@@ -151,6 +160,7 @@ bool planCacheContains(const PlanCache& planCache,
     qr->setFilter(fromjson(queryStr));
     qr->setSort(fromjson(sortStr));
     qr->setProj(fromjson(projectionStr));
+    qr->setCollation(fromjson(collationStr));
     auto statusWithInputQuery = CanonicalQuery::canonicalize(
         txn.get(), std::move(qr), ExtensionsCallbackDisallowExtensions());
     ASSERT_OK(statusWithInputQuery.getStatus());
@@ -171,6 +181,7 @@ bool planCacheContains(const PlanCache& planCache,
         qr->setFilter(entry->query);
         qr->setSort(entry->sort);
         qr->setProj(entry->projection);
+        qr->setCollation(entry->collation);
         auto statusWithCurrentQuery = CanonicalQuery::canonicalize(
             txn.get(), std::move(qr), ExtensionsCallbackDisallowExtensions());
         ASSERT_OK(statusWithCurrentQuery.getStatus());
@@ -289,6 +300,13 @@ TEST(IndexFilterCommandsTest, SetFilterInvalidParameter) {
                        &planCache,
                        nss.ns(),
                        fromjson("{query: {a: 1}, projection: 1234, indexes: [{a: 1}, {b: 1}]}")));
+    // If present, collation must be an object.
+    ASSERT_NOT_OK(
+        SetFilter::set(&txn,
+                       &empty,
+                       &planCache,
+                       nss.ns(),
+                       fromjson("{query: {a: 1}, collation: 1234, indexes: [{a: 1}, {b: 1}]}")));
     // Query must pass canonicalization.
     ASSERT_NOT_OK(
         SetFilter::set(&txn,
@@ -305,36 +323,40 @@ TEST(IndexFilterCommandsTest, SetAndClearFilters) {
     auto txn = serviceContext.makeOperationContext();
 
     // Inject query shape into plan cache.
-    addQueryShapeToPlanCache(txn.get(), &planCache, "{a: 1, b: 1}", "{a: -1}", "{_id: 0, a: 1}");
-    ASSERT_TRUE(planCacheContains(planCache, "{a: 1, b: 1}", "{a: -1}", "{_id: 0, a: 1}"));
+    addQueryShapeToPlanCache(
+        txn.get(), &planCache, "{a: 1, b: 1}", "{a: -1}", "{_id: 0, a: 1}", "{locale: 'en_US'}");
+    ASSERT_TRUE(planCacheContains(
+        planCache, "{a: 1, b: 1}", "{a: -1}", "{_id: 0, a: 1}", "{locale: 'en_US'}"));
 
-    ASSERT_OK(
-        SetFilter::set(txn.get(),
-                       &querySettings,
-                       &planCache,
-                       nss.ns(),
-                       fromjson("{query: {a: 1, b: 1}, sort: {a: -1}, projection: {_id: 0, a: 1}, "
-                                "indexes: [{a: 1}]}")));
+    ASSERT_OK(SetFilter::set(txn.get(),
+                             &querySettings,
+                             &planCache,
+                             nss.ns(),
+                             fromjson("{query: {a: 1, b: 1}, sort: {a: -1}, projection: {_id: 0, "
+                                      "a: 1}, collation: {locale: 'en_US'}, "
+                                      "indexes: [{a: 1}]}")));
     vector<BSONObj> filters = getFilters(querySettings);
     ASSERT_EQUALS(filters.size(), 1U);
 
     // Query shape should not exist in plan cache after hint is updated.
-    ASSERT_FALSE(planCacheContains(planCache, "{a: 1, b: 1}", "{a: -1}", "{_id: 0, a: 1}"));
+    ASSERT_FALSE(planCacheContains(
+        planCache, "{a: 1, b: 1}", "{a: -1}", "{_id: 0, a: 1}", "{locale: 'en_US'}"));
 
     // Fields in filter should match criteria in most recent query settings update.
     ASSERT_EQUALS(filters[0].getObjectField("query"), fromjson("{a: 1, b: 1}"));
     ASSERT_EQUALS(filters[0].getObjectField("sort"), fromjson("{a: -1}"));
     ASSERT_EQUALS(filters[0].getObjectField("projection"), fromjson("{_id: 0, a: 1}"));
+    ASSERT_EQUALS(filters[0].getObjectField("collation"), fromjson("{locale: 'en_US'}"));
 
     // Replacing the hint for the same query shape ({a: 1, b: 1} and {b: 2, a: 3}
     // share same shape) should not change the query settings size.
-    ASSERT_OK(
-        SetFilter::set(txn.get(),
-                       &querySettings,
-                       &planCache,
-                       nss.ns(),
-                       fromjson("{query: {b: 2, a: 3}, sort: {a: -1}, projection: {_id: 0, a: 1}, "
-                                "indexes: [{a: 1, b: 1}]}")));
+    ASSERT_OK(SetFilter::set(txn.get(),
+                             &querySettings,
+                             &planCache,
+                             nss.ns(),
+                             fromjson("{query: {b: 2, a: 3}, sort: {a: -1}, projection: {_id: 0, "
+                                      "a: 1}, collation: {locale: 'en_US'}, "
+                                      "indexes: [{a: 1, b: 1}]}")));
     filters = getFilters(querySettings);
     ASSERT_EQUALS(filters.size(), 1U);
 
@@ -357,8 +379,8 @@ TEST(IndexFilterCommandsTest, SetAndClearFilters) {
     ASSERT_EQUALS(filters.size(), 3U);
 
     // Add 2 entries to plan cache and check plan cache after clearing one/all filters.
-    addQueryShapeToPlanCache(txn.get(), &planCache, "{a: 1}", "{}", "{}");
-    addQueryShapeToPlanCache(txn.get(), &planCache, "{b: 1}", "{}", "{}");
+    addQueryShapeToPlanCache(txn.get(), &planCache, "{a: 1}", "{}", "{}", "{}");
+    addQueryShapeToPlanCache(txn.get(), &planCache, "{b: 1}", "{}", "{}", "{}");
 
     // Clear single hint.
     ASSERT_OK(ClearFilters::clear(
@@ -367,8 +389,8 @@ TEST(IndexFilterCommandsTest, SetAndClearFilters) {
     ASSERT_EQUALS(filters.size(), 2U);
 
     // Query shape should not exist in plan cache after cleaing 1 hint.
-    ASSERT_FALSE(planCacheContains(planCache, "{a: 1}", "{}", "{}"));
-    ASSERT_TRUE(planCacheContains(planCache, "{b: 1}", "{}", "{}"));
+    ASSERT_FALSE(planCacheContains(planCache, "{a: 1}", "{}", "{}", "{}"));
+    ASSERT_TRUE(planCacheContains(planCache, "{b: 1}", "{}", "{}", "{}"));
 
     // Clear all filters
     ASSERT_OK(ClearFilters::clear(txn.get(), &querySettings, &planCache, nss.ns(), fromjson("{}")));
@@ -376,7 +398,7 @@ TEST(IndexFilterCommandsTest, SetAndClearFilters) {
     ASSERT_TRUE(filters.empty());
 
     // {b: 1} should be gone from plan cache after flushing query settings.
-    ASSERT_FALSE(planCacheContains(planCache, "{b: 1}", "{}", "{}"));
+    ASSERT_FALSE(planCacheContains(planCache, "{b: 1}", "{}", "{}", "{}"));
 }
 
 }  // namespace
