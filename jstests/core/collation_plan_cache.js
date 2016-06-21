@@ -19,9 +19,9 @@
     // listQueryShapes().
 
     // Run a query so that an entry is inserted into the cache.
-    assert.eq(1,
-              coll.find({a: 'foo', b: 5}).collation({locale: 'en_US'}).itcount(),
-              'unexpected document count');
+    assert.commandWorked(
+        coll.runCommand("find", {filter: {a: 'foo', b: 5}, collation: {locale: "en_US"}}),
+        'find command failed');
 
     // The query shape should have been added.
     res = coll.getPlanCache().listQueryShapes();
@@ -51,9 +51,9 @@
     // getPlansByQuery().
 
     // Run a query so that an entry is inserted into the cache.
-    assert.eq(1,
-              coll.find({a: 'foo', b: 5}).collation({locale: 'en_US'}).itcount(),
-              'unexpected document count');
+    assert.commandWorked(
+        coll.runCommand("find", {filter: {a: 'foo', b: 5}, collation: {locale: "en_US"}}),
+        'find command failed');
 
     // The query should have cached plans.
     assert.lt(
@@ -98,9 +98,9 @@
     // clearPlansByQuery().
 
     // Run a query so that an entry is inserted into the cache.
-    assert.eq(1,
-              coll.find({a: 'foo', b: 5}).collation({locale: 'en_US'}).itcount(),
-              'unexpected document count');
+    assert.commandWorked(
+        coll.runCommand("find", {filter: {a: 'foo', b: 5}, collation: {locale: "en_US"}}),
+        'find command failed');
     assert.eq(1,
               coll.getPlanCache().listQueryShapes().length,
               'unexpected cache size after running query');
@@ -146,19 +146,18 @@
     res = coll.runCommand('planCacheListFilters');
     assert.commandWorked(res, 'planCacheListFilters failed');
     assert.eq(1, res.filters.length, 'unexpected number of plan cache filters');
-    assert
-        .eq(res.filters[0],
-            {
-              query: {a: 'foo', b: 5},
-              sort: {},
-              projection: {},
-              collation: {locale: 'en_US'},
-              indexes: [{a: 1, b: 1}]
-            },
-            'unexpected plan cache filter')
+    assert.eq(res.filters[0],
+              {
+                query: {a: 'foo', b: 5},
+                sort: {},
+                projection: {},
+                collation: {locale: 'en_US'},
+                indexes: [{a: 1, b: 1}]
+              },
+              'unexpected plan cache filter');
 
-        // Clearing a plan cache filter with no collation should have no effect.
-        assert.commandWorked(coll.runCommand('planCacheClearFilters', {query: {a: 'foo', b: 5}}));
+    // Clearing a plan cache filter with no collation should have no effect.
+    assert.commandWorked(coll.runCommand('planCacheClearFilters', {query: {a: 'foo', b: 5}}));
     assert.eq(1,
               coll.runCommand('planCacheListFilters').filters.length,
               'unexpected number of plan cache filters');
