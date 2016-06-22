@@ -196,74 +196,76 @@ TEST(PlanCacheCommandsTest, planCacheClearAllShapes) {
 TEST(PlanCacheCommandsTest, Canonicalize) {
     // Invalid parameters
     PlanCache planCache;
-    OperationContextNoop txn;
+    QueryTestServiceContext serviceContext;
+    auto txn = serviceContext.makeOperationContext();
 
     // Missing query field
-    ASSERT_NOT_OK(PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{}")).getStatus());
+    ASSERT_NOT_OK(PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{}")).getStatus());
     // Query needs to be an object
     ASSERT_NOT_OK(
-        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: 1}")).getStatus());
+        PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{query: 1}")).getStatus());
     // Sort needs to be an object
-    ASSERT_NOT_OK(PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, sort: 1}"))
-                      .getStatus());
+    ASSERT_NOT_OK(
+        PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{query: {}, sort: 1}"))
+            .getStatus());
     // Projection needs to be an object.
     ASSERT_NOT_OK(
-        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, projection: 1}"))
+        PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{query: {}, projection: 1}"))
             .getStatus());
     // Collation needs to be an object.
     ASSERT_NOT_OK(
-        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, collation: 1}"))
+        PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{query: {}, collation: 1}"))
             .getStatus());
     // Bad query (invalid sort order)
     ASSERT_NOT_OK(
-        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {}, sort: {a: 0}}"))
+        PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{query: {}, sort: {a: 0}}"))
             .getStatus());
 
     // Valid parameters
     auto statusWithCQ =
-        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {a: 1, b: 1}}"));
+        PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{query: {a: 1, b: 1}}"));
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> query = std::move(statusWithCQ.getValue());
 
 
     // Equivalent query should generate same key.
     statusWithCQ =
-        PlanCacheCommand::canonicalize(&txn, nss.ns(), fromjson("{query: {b: 1, a: 1}}"));
+        PlanCacheCommand::canonicalize(txn.get(), nss.ns(), fromjson("{query: {b: 1, a: 1}}"));
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> equivQuery = std::move(statusWithCQ.getValue());
     ASSERT_EQUALS(planCache.computeKey(*query), planCache.computeKey(*equivQuery));
 
     // Sort query should generate different key from unsorted query.
     statusWithCQ = PlanCacheCommand::canonicalize(
-        &txn, nss.ns(), fromjson("{query: {a: 1, b: 1}, sort: {a: 1, b: 1}}"));
+        txn.get(), nss.ns(), fromjson("{query: {a: 1, b: 1}, sort: {a: 1, b: 1}}"));
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> sortQuery1 = std::move(statusWithCQ.getValue());
     ASSERT_NOT_EQUALS(planCache.computeKey(*query), planCache.computeKey(*sortQuery1));
 
     // Confirm sort arguments are properly delimited (SERVER-17158)
     statusWithCQ = PlanCacheCommand::canonicalize(
-        &txn, nss.ns(), fromjson("{query: {a: 1, b: 1}, sort: {aab: 1}}"));
+        txn.get(), nss.ns(), fromjson("{query: {a: 1, b: 1}, sort: {aab: 1}}"));
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> sortQuery2 = std::move(statusWithCQ.getValue());
     ASSERT_NOT_EQUALS(planCache.computeKey(*sortQuery1), planCache.computeKey(*sortQuery2));
 
     // Changing order and/or value of predicates should not change key
     statusWithCQ = PlanCacheCommand::canonicalize(
-        &txn, nss.ns(), fromjson("{query: {b: 3, a: 3}, sort: {a: 1, b: 1}}"));
+        txn.get(), nss.ns(), fromjson("{query: {b: 3, a: 3}, sort: {a: 1, b: 1}}"));
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> sortQuery3 = std::move(statusWithCQ.getValue());
     ASSERT_EQUALS(planCache.computeKey(*sortQuery1), planCache.computeKey(*sortQuery3));
 
     // Projected query should generate different key from unprojected query.
     statusWithCQ = PlanCacheCommand::canonicalize(
-        &txn, nss.ns(), fromjson("{query: {a: 1, b: 1}, projection: {_id: 0, a: 1}}"));
+        txn.get(), nss.ns(), fromjson("{query: {a: 1, b: 1}, projection: {_id: 0, a: 1}}"));
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> projectionQuery = std::move(statusWithCQ.getValue());
     ASSERT_NOT_EQUALS(planCache.computeKey(*query), planCache.computeKey(*projectionQuery));
 
     // Query with collation should generate different key from query without collation.
     statusWithCQ = PlanCacheCommand::canonicalize(
-        &txn, nss.ns(), fromjson("{query: {a: 1, b: 1}, collation: {locale: 'en_US'}}"));
+        txn.get(), nss.ns(), fromjson("{query: {a: 1, b: 1}, collation: {locale: 'en_US'}}"));
     ASSERT_OK(statusWithCQ.getStatus());
     unique_ptr<CanonicalQuery> collationQuery = std::move(statusWithCQ.getValue());
     ASSERT_NOT_EQUALS(planCache.computeKey(*query), planCache.computeKey(*collationQuery));
