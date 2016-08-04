@@ -40,6 +40,7 @@
 #include "mongo/db/auth/authorization_manager.h"
 #include "mongo/db/auth/internal_user_auth.h"
 #include "mongo/db/commands.h"
+#include "mongo/db/dbdirectclient.h"
 #include "mongo/db/server_parameters.h"
 #include "mongo/db/storage/storage_options.h"
 #include "mongo/logger/logger.h"
@@ -651,5 +652,37 @@ private:
 
 constexpr decltype(AutomationServiceDescriptor::kName) AutomationServiceDescriptor::kName;
 constexpr decltype(AutomationServiceDescriptor::kMaxSize) AutomationServiceDescriptor::kMaxSize;
+
+class FeatureCompatibilityVersion : public ServerParameter {
+public:
+    FeatureCompatibilityVersion()
+        : ServerParameter(ServerParameterSet::getGlobal(),
+                          "featureCompatibilityVersion",
+                          false,  // allowedToChangeAtStartup
+                          false    // allowedToChangeAtRuntime
+                          ) {}
+
+    virtual void append(OperationContext* txn, BSONObjBuilder& b, const std::string& name) {
+      DBDirectClient client(txn);
+      auto result = client.findOne("admin.system.version", BSON("_id" << "featureCompatibilityVersion"));
+      if (!result.isEmpty()) {
+        if (BSONElement versionElement = result["version"]) {
+          if (versionElement.type() == BSONType::String) {
+            b << name << versionElement.String();
+            return;
+          }
+        }
+      }
+      b << name << "3.4";
+    }
+
+    virtual Status set(const BSONElement& newValueElement) override {
+        return Status(ErrorCodes::IllegalOperation, "cannot set featureCompatibilityVersion via setParameter");
+    }
+
+    virtual Status setFromString(const std::string& str) override {
+        return Status(ErrorCodes::IllegalOperation, "cannot set featureCompatibilityVersion via setParameter");
+    }
+} featureCompatibilityVersion;
 }
 }

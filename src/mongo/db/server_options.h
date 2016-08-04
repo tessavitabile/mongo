@@ -137,6 +137,21 @@ struct ServerGlobalParams {
     // for the YAML config, sharding._overrideShardIdentity. Can only be used when in
     // queryableBackupMode.
     BSONObj overrideShardIdentity;
+
+    AtomicInt32 featureCompatibilityVersion;
+
+    enum FeatureCompatibilityVersions {
+        /**
+        * Allow 3.4 features.
+        * Default value.
+        */
+        FeatureCompatibilityVersion_34,
+
+        /**
+        * Do not allow 3.4 features.
+        */
+        FeatureCompatibilityVersion_32
+    };
 };
 
 extern ServerGlobalParams serverGlobalParams;
