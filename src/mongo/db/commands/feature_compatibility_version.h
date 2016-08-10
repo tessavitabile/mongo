@@ -38,7 +38,6 @@ class Status;
 class FeatureCompatibilityVersion {
 public:
     static const char* kCollection;
-    static const char* kViewsCollection;
     static const char* kCommandName;
     static const char* kParameterName;
     static const char* kVersionField;

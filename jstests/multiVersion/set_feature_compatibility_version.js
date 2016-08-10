@@ -268,12 +268,7 @@
     // featureCompatibilityVersion=3.2.
     assert.commandWorked(mongosAdminDB.runCommand({setFeatureCompatibilityVersion: "3.2"}));
     newShard = new ReplSetTest({
-        nodes: [
-            {
-              binVersion: latest,
-            },
-            {binVersion: latest}
-        ],
+        nodes: [{binVersion: latest}, {binVersion: latest}],
         nodeOptions: {shardsvr: ""},
         useHostName: true
     });

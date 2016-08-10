@@ -38,7 +38,6 @@
 namespace mongo {
 
 const char* FeatureCompatibilityVersion::kCollection = "admin.system.version";
-const char* FeatureCompatibilityVersion::kViewsCollection = "admin.system.views";
 const char* FeatureCompatibilityVersion::kCommandName = "setFeatureCompatibilityVersion";
 const char* FeatureCompatibilityVersion::kParameterName = "featureCompatibilityVersion";
 const char* FeatureCompatibilityVersion::kVersionField = "version";
