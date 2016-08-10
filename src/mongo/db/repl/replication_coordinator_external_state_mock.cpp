@@ -287,5 +287,8 @@ void ReplicationCoordinatorExternalStateMock::logTransitionToPrimaryToOplog(Oper
     _lastOpTime = OpTime(Timestamp(1, 0), 1);
 }
 
+void ReplicationCoordinatorExternalStateMock::setFeatureCompatibilityVersionOnDrainingStateHook(
+    OperationContext* txn) {}
+
 }  // namespace repl
 }  // namespace mongo

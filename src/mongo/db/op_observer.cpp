@@ -33,10 +33,12 @@
 #include "mongo/db/auth/authorization_manager_global.h"
 #include "mongo/db/catalog/collection_options.h"
 #include "mongo/db/commands/dbhash.h"
+#include "mongo/db/commands/feature_compatibility_version.h"
 #include "mongo/db/namespace_string.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/repl/oplog.h"
 #include "mongo/db/s/collection_sharding_state.h"
+#include "mongo/db/server_options.h"
 #include "mongo/db/views/durable_view_catalog.h"
 #include "mongo/scripting/engine.h"
 
@@ -77,6 +79,31 @@ void OpObserver::onInserts(OperationContext* txn,
         }
     }
 
+    // If we updated featureCompatibilityVersion in admin.system.version, cache it as a server
+    // parameter.
+    if (nss.ns() == FeatureCompatibilityVersion::kCollection) {
+        for (auto it = begin; it != end; it++) {
+            BSONElement idElement = (*it)["_id"];
+            invariant(idElement);
+            if (idElement.type() == BSONType::String &&
+                idElement.String() == FeatureCompatibilityVersion::kParameterName) {
+                auto versionElement = (*it)[FeatureCompatibilityVersion::kVersionField];
+                invariant(versionElement);
+                invariant(versionElement.type() == BSONType::String);
+                auto version = versionElement.String();
+                if (version == FeatureCompatibilityVersion::kVersion34) {
+                    serverGlobalParams.featureCompatibilityVersion.store(
+                        ServerGlobalParams::FeatureCompatibilityVersion_34);
+                } else if (version == FeatureCompatibilityVersion::kVersion32) {
+                    serverGlobalParams.featureCompatibilityVersion.store(
+                        ServerGlobalParams::FeatureCompatibilityVersion_32);
+                } else {
+                    invariant(false);
+                }
+            }
+        }
+    }
+
     logOpForDbHash(txn, ns);
     if (strstr(ns, ".system.js")) {
         Scope::storedFuncMod(txn);
@@ -109,6 +136,29 @@ void OpObserver::onUpdate(OperationContext* txn, const OplogUpdateEntryArgs& arg
     NamespaceString nss(args.ns);
     if (nss.coll() == DurableViewCatalog::viewsCollectionName()) {
         DurableViewCatalog::onExternalChange(txn, nss);
+    }
+
+    // If we updated featureCompatibilityVersion in admin.system.version, cache it as a server
+    // parameter.
+    if (args.ns == FeatureCompatibilityVersion::kCollection) {
+        BSONElement idElement = args.updatedDoc["_id"];
+        invariant(idElement);
+        if (idElement.type() == BSONType::String &&
+            idElement.String() == FeatureCompatibilityVersion::kParameterName) {
+            auto versionElement = args.updatedDoc[FeatureCompatibilityVersion::kVersionField];
+            invariant(versionElement);
+            invariant(versionElement.type() == BSONType::String);
+            auto version = versionElement.String();
+            if (version == FeatureCompatibilityVersion::kVersion34) {
+                serverGlobalParams.featureCompatibilityVersion.store(
+                    ServerGlobalParams::FeatureCompatibilityVersion_34);
+            } else if (version == FeatureCompatibilityVersion::kVersion32) {
+                serverGlobalParams.featureCompatibilityVersion.store(
+                    ServerGlobalParams::FeatureCompatibilityVersion_32);
+            } else {
+                invariant(false);
+            }
+        }
     }
 }
 

@@ -355,6 +355,7 @@
         saslStart: {skip: isUnrelated},
         serverStatus: {command: {serverStatus: 1}, skip: isUnrelated},
         setCommittedSnapshot: {skip: isAnInternalCommand},
+        setFeatureCompatibilityVersion: {skip: isUnrelated},
         setParameter: {skip: isUnrelated},
         setShardVersion: {skip: isUnrelated},
         shardConnPoolStats: {skip: isUnrelated},

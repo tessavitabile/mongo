@@ -846,6 +846,7 @@ void ReplicationCoordinatorImpl::signalDrainComplete(OperationContext* txn) {
     _drainFinishedCond.notify_all();
     lk.unlock();
 
+    _externalState->setFeatureCompatibilityVersionOnDrainingStateHook(txn);
     _externalState->shardingOnDrainingStateHook(txn);
     _externalState->dropAllTempCollections(txn);
 

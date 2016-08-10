@@ -317,6 +317,12 @@ public:
      * Returns true if the user specified to use the data replicator for initial sync.
      */
     virtual bool shouldUseDataReplicatorInitialSync() const = 0;
+
+    /**
+     * Sets featureCompatibilityVersion to 3.4 if there are no non-local databases and we were not
+     * started with --shardsvr.
+     */
+    virtual void setFeatureCompatibilityVersionOnDrainingStateHook(OperationContext* txn) = 0;
 };
 
 }  // namespace repl

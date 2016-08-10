@@ -44,6 +44,7 @@
 #include "mongo/client/replica_set_monitor.h"
 #include "mongo/db/client.h"
 #include "mongo/db/commands.h"
+#include "mongo/db/commands/feature_compatibility_version.h"
 #include "mongo/db/db_raii.h"
 #include "mongo/db/dbdirectclient.h"
 #include "mongo/db/namespace_string.h"
@@ -735,6 +736,25 @@ StatusWith<string> ShardingCatalogManagerImpl::addShard(
         Shard::CommandResponse::processBatchWriteResponse(commandResponse, &batchResponse);
     if (!batchResponseStatus.isOK()) {
         return batchResponseStatus;
+    }
+
+    // If the minimum allowed version for the cluster is 3.4, set the featureCompatibilityVersion to
+    // 3.4 on the shard.
+    if (serverGlobalParams.featureCompatibilityVersion.load() ==
+        ServerGlobalParams::FeatureCompatibilityVersion_34) {
+        auto versionResponse =
+            _runCommandForAddShard(txn,
+                                   targeter.get(),
+                                   "admin",
+                                   BSON(FeatureCompatibilityVersion::kCommandName
+                                        << FeatureCompatibilityVersion::kVersion34));
+        if (!versionResponse.isOK()) {
+            return versionResponse.getStatus();
+        }
+
+        if (!versionResponse.getValue().commandStatus.isOK()) {
+            return versionResponse.getValue().commandStatus;
+        }
     }
 
     log() << "going to insert new entry for shard into config.shards: " << shardType.toString();

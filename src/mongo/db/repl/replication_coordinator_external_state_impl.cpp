@@ -40,6 +40,7 @@
 #include "mongo/db/catalog/database.h"
 #include "mongo/db/catalog/database_holder.h"
 #include "mongo/db/client.h"
+#include "mongo/db/commands/feature_compatibility_version.h"
 #include "mongo/db/concurrency/d_concurrency.h"
 #include "mongo/db/concurrency/write_conflict_exception.h"
 #include "mongo/db/dbhelpers.h"
@@ -682,6 +683,23 @@ JournalListener::Token ReplicationCoordinatorExternalStateImpl::getToken() {
 
 void ReplicationCoordinatorExternalStateImpl::onDurable(const JournalListener::Token& token) {
     repl::getGlobalReplicationCoordinator()->setMyLastDurableOpTimeForward(token);
+}
+
+void ReplicationCoordinatorExternalStateImpl::setFeatureCompatibilityVersionOnDrainingStateHook(
+    OperationContext* txn) {
+    std::vector<std::string> dbNames;
+    StorageEngine* storageEngine = getGlobalServiceContext()->getGlobalStorageEngine();
+    storageEngine->listDatabases(&dbNames);
+
+    for (auto&& dbName : dbNames) {
+        if (dbName != "local") {
+            return;
+        }
+    }
+
+    if (serverGlobalParams.clusterRole != ClusterRole::ShardServer) {
+        FeatureCompatibilityVersion::set(txn, FeatureCompatibilityVersion::kVersion34);
+    }
 }
 
 }  // namespace repl

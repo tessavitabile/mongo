@@ -56,6 +56,7 @@
 #include "mongo/db/catalog/index_key_validate.h"
 #include "mongo/db/client.h"
 #include "mongo/db/clientcursor.h"
+#include "mongo/db/commands/feature_compatibility_version.h"
 #include "mongo/db/concurrency/d_concurrency.h"
 #include "mongo/db/concurrency/lock_state.h"
 #include "mongo/db/concurrency/write_conflict_exception.h"
@@ -368,12 +369,18 @@ static void repairDatabasesAndCheckVersion(OperationContext* txn) {
 
     const bool shouldDoCleanupForSERVER23299 = isSubjectToSERVER23299(txn);
 
+    bool hasNonLocalDatabase = false;
+
     for (vector<string>::const_iterator i = dbNames.begin(); i != dbNames.end(); ++i) {
         const string dbName = *i;
         LOG(1) << "    Recovering database: " << dbName << endl;
 
         Database* db = dbHolder().openDb(txn, dbName);
         invariant(db);
+
+        if (dbName != "local") {
+            hasNonLocalDatabase = true;
+        }
 
         // First thing after opening the database is to check for file compatibility,
         // otherwise we might crash if this is a deprecated format.
@@ -394,6 +401,40 @@ static void repairDatabasesAndCheckVersion(OperationContext* txn) {
                         " major release";
             quickExit(EXIT_NEED_UPGRADE);
             return;
+        }
+
+        // Check if admin.system.version contains an invalid featureCompatibilityVersion.
+        // If a valid featureCompatibilityVersion is present, cache it as a server parameter.
+        if (dbName == "admin") {
+            if (Collection* versionColl =
+                    db->getCollection(FeatureCompatibilityVersion::kCollection)) {
+                BSONObj featureCompatibilityVersion;
+                if (Helpers::findOne(txn,
+                                     versionColl,
+                                     BSON("_id" << FeatureCompatibilityVersion::kParameterName),
+                                     featureCompatibilityVersion)) {
+                    for (auto&& elem : featureCompatibilityVersion) {
+                        auto fieldName = elem.fieldNameStringData();
+                        if (fieldName == "_id") {
+                            continue;
+                        } else if (fieldName == FeatureCompatibilityVersion::kVersionField) {
+                            fassert(40256, elem.type() == BSONType::String);
+                            std::string version = elem.String();
+                            if (version == FeatureCompatibilityVersion::kVersion34) {
+                                serverGlobalParams.featureCompatibilityVersion.store(
+                                    ServerGlobalParams::FeatureCompatibilityVersion_34);
+                            } else if (version == FeatureCompatibilityVersion::kVersion32) {
+                                serverGlobalParams.featureCompatibilityVersion.store(
+                                    ServerGlobalParams::FeatureCompatibilityVersion_32);
+                            } else {
+                                fassertFailed(40257);
+                            }
+                        } else {
+                            fassertFailed(40258);
+                        }
+                    }
+                }
+            }
         }
 
         // Major versions match, check indexes
@@ -457,6 +498,13 @@ static void repairDatabasesAndCheckVersion(OperationContext* txn) {
             (shouldClearNonLocalTmpCollections || dbName == "local")) {
             db->clearTmpCollections(txn);
         }
+    }
+
+    // Set featureCompatibilityVersion to 3.4, if possible.
+    const bool isStandaloneOrMaster = !replSettings.usingReplSets() && !replSettings.isSlave();
+    const bool shardSvr = (serverGlobalParams.clusterRole == ClusterRole::ShardServer);
+    if (!hasNonLocalDatabase && isStandaloneOrMaster && !shardSvr) {
+        FeatureCompatibilityVersion::set(txn, FeatureCompatibilityVersion::kVersion34);
     }
 
     LOG(1) << "done repairDatabases" << endl;
