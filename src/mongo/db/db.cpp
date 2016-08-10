@@ -418,7 +418,7 @@ static void repairDatabasesAndCheckVersion(OperationContext* txn) {
                         if (fieldName == "_id") {
                             continue;
                         } else if (fieldName == FeatureCompatibilityVersion::kVersionField) {
-                            fassert(40256, elem.type() == BSONType::String);
+                            fassert(40271, elem.type() == BSONType::String);
                             std::string version = elem.String();
                             if (version == FeatureCompatibilityVersion::kVersion34) {
                                 serverGlobalParams.featureCompatibilityVersion.store(
@@ -427,10 +427,10 @@ static void repairDatabasesAndCheckVersion(OperationContext* txn) {
                                 serverGlobalParams.featureCompatibilityVersion.store(
                                     ServerGlobalParams::FeatureCompatibilityVersion_32);
                             } else {
-                                fassertFailed(40257);
+                                fassertFailed(40272);
                             }
                         } else {
-                            fassertFailed(40258);
+                            fassertFailed(40273);
                         }
                     }
                 }
