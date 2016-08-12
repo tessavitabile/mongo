@@ -720,6 +720,30 @@ StatusWith<string> ShardingCatalogManagerImpl::addShard(
         shardType.setMaxSizeMB(maxSize);
     }
 
+    // If the minimum allowed version for the cluster is 3.4, set the featureCompatibilityVersion to
+    // 3.4 on the shard.
+    if (serverGlobalParams.featureCompatibilityVersion.load() ==
+        ServerGlobalParams::FeatureCompatibilityVersion_34) {
+        auto versionResponse =
+            _runCommandForAddShard(txn,
+                                   targeter.get(),
+                                   "admin",
+                                   BSON(FeatureCompatibilityVersion::kCommandName
+                                        << FeatureCompatibilityVersion::kVersion34));
+        if (!versionResponse.isOK()) {
+            return versionResponse.getStatus();
+        }
+
+        if (!versionResponse.getValue().commandStatus.isOK()) {
+            if (versionResponse.getStatus().code() == ErrorCodes::CommandNotFound) {
+                return Status(ErrorCodes::OperationFailed,
+                              "featureCompatibilityVersion for cluster is 3.4, cannot add a shard "
+                              "with version below 3.4");
+            }
+            return versionResponse.getValue().commandStatus;
+        }
+    }
+
     auto commandRequest = createShardIdentityUpsertForAddShard(txn, shardType.getName());
 
     LOG(2) << "going to insert shardIdentity document into shard: " << shardType;
@@ -736,25 +760,6 @@ StatusWith<string> ShardingCatalogManagerImpl::addShard(
         Shard::CommandResponse::processBatchWriteResponse(commandResponse, &batchResponse);
     if (!batchResponseStatus.isOK()) {
         return batchResponseStatus;
-    }
-
-    // If the minimum allowed version for the cluster is 3.4, set the featureCompatibilityVersion to
-    // 3.4 on the shard.
-    if (serverGlobalParams.featureCompatibilityVersion.load() ==
-        ServerGlobalParams::FeatureCompatibilityVersion_34) {
-        auto versionResponse =
-            _runCommandForAddShard(txn,
-                                   targeter.get(),
-                                   "admin",
-                                   BSON(FeatureCompatibilityVersion::kCommandName
-                                        << FeatureCompatibilityVersion::kVersion34));
-        if (!versionResponse.isOK()) {
-            return versionResponse.getStatus();
-        }
-
-        if (!versionResponse.getValue().commandStatus.isOK()) {
-            return versionResponse.getValue().commandStatus;
-        }
     }
 
     log() << "going to insert new entry for shard into config.shards: " << shardType.toString();

@@ -413,12 +413,23 @@ static void repairDatabasesAndCheckVersion(OperationContext* txn) {
                                      versionColl,
                                      BSON("_id" << FeatureCompatibilityVersion::kParameterName),
                                      featureCompatibilityVersion)) {
+                    const auto failFn = [&]() {
+                        severe() << "Contents of " << FeatureCompatibilityVersion::kParameterName
+                                 << " document in " << FeatureCompatibilityVersion::kCollection
+                                 << ": " << featureCompatibilityVersion;
+                        fassertFailedNoTrace(40271);
+                    };
                     for (auto&& elem : featureCompatibilityVersion) {
                         auto fieldName = elem.fieldNameStringData();
                         if (fieldName == "_id") {
                             continue;
                         } else if (fieldName == FeatureCompatibilityVersion::kVersionField) {
-                            fassert(40271, elem.type() == BSONType::String);
+                            if (elem.type() != BSONType::String) {
+                                severe() << "Bad type for "
+                                         << FeatureCompatibilityVersion::kVersionField
+                                         << " element: " << typeName(elem.type());
+                                failFn();
+                            }
                             std::string version = elem.String();
                             if (version == FeatureCompatibilityVersion::kVersion34) {
                                 serverGlobalParams.featureCompatibilityVersion.store(
@@ -427,10 +438,17 @@ static void repairDatabasesAndCheckVersion(OperationContext* txn) {
                                 serverGlobalParams.featureCompatibilityVersion.store(
                                     ServerGlobalParams::FeatureCompatibilityVersion_32);
                             } else {
-                                fassertFailed(40272);
+                                severe() << "Bad value for "
+                                         << FeatureCompatibilityVersion::kVersionField << ": "
+                                         << version;
+                                failFn();
                             }
                         } else {
-                            fassertFailed(40273);
+                            severe() << "Unexpected field in : "
+                                     << FeatureCompatibilityVersion::kParameterName
+                                     << " document in " << FeatureCompatibilityVersion::kCollection
+                                     << ": " << fieldName;
+                            failFn();
                         }
                     }
                 }

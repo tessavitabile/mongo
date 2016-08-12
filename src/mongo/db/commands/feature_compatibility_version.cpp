@@ -37,21 +37,23 @@
 
 namespace mongo {
 
-const char* FeatureCompatibilityVersion::kCollection = "admin.system.version";
-const char* FeatureCompatibilityVersion::kCommandName = "setFeatureCompatibilityVersion";
-const char* FeatureCompatibilityVersion::kParameterName = "featureCompatibilityVersion";
-const char* FeatureCompatibilityVersion::kVersionField = "version";
-const char* FeatureCompatibilityVersion::kVersion34 = "3.4";
-const char* FeatureCompatibilityVersion::kVersion32 = "3.2";
+constexpr StringData FeatureCompatibilityVersion::kCollection;
+constexpr StringData FeatureCompatibilityVersion::kCommandName;
+constexpr StringData FeatureCompatibilityVersion::kParameterName;
+constexpr StringData FeatureCompatibilityVersion::kVersionField;
+constexpr StringData FeatureCompatibilityVersion::kVersion34;
+constexpr StringData FeatureCompatibilityVersion::kVersion32;
 
-Status FeatureCompatibilityVersion::set(OperationContext* txn, const std::string& version) {
-    invariant(version == FeatureCompatibilityVersion::kVersion34 ||
-              version == FeatureCompatibilityVersion::kVersion32);
+void FeatureCompatibilityVersion::set(OperationContext* txn, StringData version) {
+    uassert(ErrorCodes::BadValue,
+            "featureCompatibilityVersion must be '3.4' or '3.2'",
+            version == FeatureCompatibilityVersion::kVersion34 ||
+                version == FeatureCompatibilityVersion::kVersion32);
 
     // Update admin.system.version.
     DBDirectClient client(txn);
     const bool upsert = true;
-    client.update(FeatureCompatibilityVersion::kCollection,
+    client.update(FeatureCompatibilityVersion::kCollection.toString(),
                   BSON("_id" << FeatureCompatibilityVersion::kParameterName),
                   BSON("$set" << BSON(FeatureCompatibilityVersion::kVersionField << version)),
                   upsert);
@@ -64,8 +66,75 @@ Status FeatureCompatibilityVersion::set(OperationContext* txn, const std::string
         serverGlobalParams.featureCompatibilityVersion.store(
             ServerGlobalParams::FeatureCompatibilityVersion_32);
     }
+}
 
-    return Status::OK();
+void FeatureCompatibilityVersion::onInsertOrUpdate(const BSONObj& doc) {
+    auto idElement = doc["_id"];
+    if (idElement.type() != BSONType::String ||
+        idElement.String() != FeatureCompatibilityVersion::kParameterName) {
+        return;
+    }
+    for (auto&& elem : doc) {
+        auto fieldName = elem.fieldNameStringData();
+        if (fieldName == "_id") {
+            continue;
+        } else if (fieldName == FeatureCompatibilityVersion::kVersionField) {
+            uassert(ErrorCodes::TypeMismatch,
+                    str::stream() << FeatureCompatibilityVersion::kVersionField
+                                  << " must be of type String, but was of type "
+                                  << typeName(elem.type())
+                                  << ". Contents of "
+                                  << FeatureCompatibilityVersion::kParameterName
+                                  << " document in "
+                                  << FeatureCompatibilityVersion::kCollection
+                                  << ": "
+                                  << doc,
+                    elem.type() == BSONType::String);
+            std::string version = elem.String();
+            if (version == FeatureCompatibilityVersion::kVersion34) {
+                serverGlobalParams.featureCompatibilityVersion.store(
+                    ServerGlobalParams::FeatureCompatibilityVersion_34);
+            } else if (version == FeatureCompatibilityVersion::kVersion32) {
+                serverGlobalParams.featureCompatibilityVersion.store(
+                    ServerGlobalParams::FeatureCompatibilityVersion_32);
+            } else {
+                uasserted(ErrorCodes::BadValue,
+                          str::stream() << "Invalid value for "
+                                        << FeatureCompatibilityVersion::kVersionField
+                                        << ", found "
+                                        << version
+                                        << ", expected '"
+                                        << FeatureCompatibilityVersion::kVersion34
+                                        << "' or '"
+                                        << FeatureCompatibilityVersion::kVersion32
+                                        << "'. Contents of "
+                                        << FeatureCompatibilityVersion::kParameterName
+                                        << " document in "
+                                        << FeatureCompatibilityVersion::kCollection
+                                        << ": "
+                                        << doc);
+            }
+        } else {
+            uasserted(ErrorCodes::BadValue,
+                      str::stream() << "Unrecognized field '" << elem.fieldName()
+                                    << "''. Contents of "
+                                    << FeatureCompatibilityVersion::kParameterName
+                                    << " document in "
+                                    << FeatureCompatibilityVersion::kCollection
+                                    << ": "
+                                    << doc);
+        }
+    }
+}
+
+void FeatureCompatibilityVersion::onDelete(const BSONObj& doc) {
+    auto idElement = doc["_id"];
+    if (idElement.type() != BSONType::String ||
+        idElement.String() != FeatureCompatibilityVersion::kParameterName) {
+        return;
+    }
+    serverGlobalParams.featureCompatibilityVersion.store(
+        ServerGlobalParams::FeatureCompatibilityVersion_32);
 }
 
 /**
@@ -75,12 +144,12 @@ class FeatureCompatibilityVersionParameter : public ServerParameter {
 public:
     FeatureCompatibilityVersionParameter()
         : ServerParameter(ServerParameterSet::getGlobal(),
-                          FeatureCompatibilityVersion::kParameterName,
+                          FeatureCompatibilityVersion::kParameterName.toString(),
                           false,  // allowedToChangeAtStartup
                           false   // allowedToChangeAtRuntime
                           ) {}
 
-    std::string featureCompatibilityVersionStr() {
+    StringData featureCompatibilityVersionStr() {
         switch (serverGlobalParams.featureCompatibilityVersion.load()) {
             case ServerGlobalParams::FeatureCompatibilityVersion_34:
                 return FeatureCompatibilityVersion::kVersion34;

@@ -28,28 +28,41 @@
 
 #pragma once
 
-#include <string>
+#include "mongo/base/string_data.h"
 
 namespace mongo {
 
+class BSONObj;
 class OperationContext;
-class Status;
 
 class FeatureCompatibilityVersion {
 public:
-    static const char* kCollection;
-    static const char* kCommandName;
-    static const char* kParameterName;
-    static const char* kVersionField;
-    static const char* kVersion34;
-    static const char* kVersion32;
+    static constexpr StringData kCollection = "admin.system.version"_sd;
+    static constexpr StringData kCommandName = "setFeatureCompatibilityVersion"_sd;
+    static constexpr StringData kParameterName = "featureCompatibilityVersion"_sd;
+    static constexpr StringData kVersionField = "version"_sd;
+    static constexpr StringData kVersion34 = "3.4"_sd;
+    static constexpr StringData kVersion32 = "3.2"_sd;
 
     /**
      * Sets the minimum allowed version in the cluster, which determines what features are
      * available.
      * 'version' should be '3.4' or '3.2'.
      */
-    static Status set(OperationContext* txn, const std::string& version);
+    static void set(OperationContext* txn, StringData version);
+
+    /**
+     * Examines a document inserted into admin.system.version. If it is the
+     * featureCompatibilityVersion document, validates the document and updates the server
+     * parameter.
+     */
+    static void onInsertOrUpdate(const BSONObj& doc);
+
+    /**
+     * Examines a document inserted into admin.system.version. If it is the
+     * featureCompatibilityVersion document, resets the server parameter to its default value (3.2).
+     */
+    static void onDelete(const BSONObj& doc);
 };
 
 }  // namespace mongo

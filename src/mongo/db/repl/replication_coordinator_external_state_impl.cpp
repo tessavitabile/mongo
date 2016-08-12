@@ -483,6 +483,12 @@ void ReplicationCoordinatorExternalStateImpl::shardingOnStepDownHook() {
     ShardingState::get(getGlobalServiceContext())->clearCollectionMetadata();
 }
 
+void ReplicationCoordinatorExternalStateImpl::drainModeHook(OperationContext* txn) {
+    setFeatureCompatibilityVersionOnDrainingStateHook(txn);
+    shardingOnDrainingStateHook(txn);
+    dropAllTempCollections(txn);
+}
+
 void ReplicationCoordinatorExternalStateImpl::shardingOnDrainingStateHook(OperationContext* txn) {
     auto status = ShardingStateRecovery::recover(txn);
 

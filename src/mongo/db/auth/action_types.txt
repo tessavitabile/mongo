@@ -93,6 +93,7 @@
 "revokeRolesFromRole",  # Not used for permissions checks, but to id the event in logs.
 "revokeRolesFromUser",  # Not used for permissions checks, but to id the event in logs.
 "serverStatus",
+"setFeatureCompatibilityVersion",
 "setParameter",
 "shardCollection",  # Not used for permissions checks, but to id the event in logs.
 "shardingState",

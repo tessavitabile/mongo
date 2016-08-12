@@ -28,6 +28,7 @@
 
 #include "mongo/platform/basic.h"
 
+#include "mongo/db/auth/authorization_session.h"
 #include "mongo/db/commands.h"
 #include "mongo/s/client/shard.h"
 #include "mongo/s/client/shard_registry.h"
@@ -59,7 +60,7 @@ public:
     }
 
     virtual bool supportsWriteConcern(const BSONObj& cmd) const override {
-        return true;
+        return false;
     }
 
     virtual void help(std::stringstream& help) const {
@@ -67,10 +68,14 @@ public:
                 "are available";
     }
 
-    virtual Status checkAuthForCommand(Client* client,
-                                       const std::string& dbname,
-                                       const BSONObj& cmdObj) {
-        // TODO: What should this be?
+    Status checkAuthForCommand(Client* client,
+                               const std::string& dbname,
+                               const BSONObj& cmdObj) override {
+        if (!AuthorizationSession::get(client)->isAuthorizedForActionsOnResource(
+                ResourcePattern::forClusterResource(),
+                ActionType::setFeatureCompatibilityVersion)) {
+            return Status(ErrorCodes::Unauthorized, "Unauthorized");
+        }
         return Status::OK();
     }
 
@@ -85,31 +90,24 @@ public:
         std::string version;
         for (auto&& elem : cmdObj) {
             if (elem.fieldNameStringData() == "setFeatureCompatibilityVersion") {
-                if (elem.type() != BSONType::String) {
-                    return appendCommandStatus(
-                        result,
-                        Status(ErrorCodes::TypeMismatch,
-                               str::stream()
-                                   << "setFeatureCompatibilityVersion must be a string, not a "
-                                   << typeName(elem.type())));
-                }
+                uassert(
+                    ErrorCodes::TypeMismatch,
+                    str::stream()
+                        << "setFeatureCompatibilityVersion must be of type String, but was of type "
+                        << typeName(elem.type()),
+                    elem.type() == BSONType::String);
                 version = elem.String();
             } else {
-                return appendCommandStatus(
-                    result,
-                    Status(ErrorCodes::FailedToParse,
-                           str::stream() << "unrecognized field '" << elem.fieldName() << "'"));
+                uasserted(ErrorCodes::FailedToParse,
+                          str::stream() << "unrecognized field '" << elem.fieldName() << "'");
             }
         }
 
-        if (version != "3.4" && version != "3.2") {
-            return appendCommandStatus(
-                result,
-                Status(ErrorCodes::BadValue,
-                       str::stream() << "invalid value for setFeatureCompatibilityVersion: "
-                                     << version
-                                     << ", expected '3.2' or '3.4'"));
-        }
+        uassert(ErrorCodes::BadValue,
+                str::stream() << "invalid value for setFeatureCompatibilityVersion, found "
+                              << version
+                              << ", expected '3.4' or '3.2'",
+                version == "3.4" || version == "3.2");
 
         // Forward to config shard, which will forward to all shards.
         auto configShard = Grid::get(txn)->shardRegistry()->getConfigShard();
@@ -119,12 +117,8 @@ public:
                                     dbname,
                                     BSON("_configsvrSetFeatureCompatibilityVersion" << version),
                                     Shard::RetryPolicy::kIdempotent);
-        if (!response.isOK()) {
-            return appendCommandStatus(result, response.getStatus());
-        }
-        if (!response.getValue().commandStatus.isOK()) {
-            return appendCommandStatus(result, response.getValue().commandStatus);
-        }
+        uassertStatusOK(response);
+        uassertStatusOK(response.getValue().commandStatus);
 
         return true;
     }

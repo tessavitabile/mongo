@@ -2528,6 +2528,21 @@ var authCommandsLib = {
           ]
         },
         {
+          testname: "setFeatureCompatibilityVersion",
+          command: {setFeatureCompatibilityVersion: "x"},
+          testcases: [
+              {
+                runOnDb: adminDbName,
+                roles: roles_clusterManager,
+                privileges:
+                    [{resource: {cluster: true}, actions: ["setFeatureCompatibilityVersion"]}],
+                expectFail: true
+              },
+              {runOnDb: firstDbName, roles: {}},
+              {runOnDb: secondDbName, roles: {}}
+          ]
+        },
+        {
           testname: "setParameter",
           command: {setParameter: 1, quiet: 1},
           testcases: [

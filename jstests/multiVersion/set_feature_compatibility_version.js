@@ -165,8 +165,6 @@
     var mongosAdminDB;
     var configPrimaryAdminDB;
     var shardPrimaryAdminDB;
-    var newShard;
-    var newShardPrimaryAdminDB;
 
     // New 3.4 cluster.
     st = new ShardingTest({shards: {rs0: {nodes: [{binVersion: latest}, {binVersion: latest}]}}});
@@ -237,49 +235,45 @@
         "3.4");
 
     // Adding a 3.2 shard to a cluster with featureCompatibilityVersion=3.4 fails.
-    newShard = new ReplSetTest({
+    var downgradeShard = new ReplSetTest({
         nodes: [{binVersion: downgrade}, {binVersion: downgrade}],
         nodeOptions: {shardsvr: ""},
         useHostName: true
     });
-    newShard.startSet();
-    newShard.initiate();
-    assert.commandFailed(mongosAdminDB.runCommand({addShard: newShard.getURL()}));
-    newShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
-
-    // Adding a 3.2 shard to a cluster with featureCompatibilityVersion=3.2 succeeds.
-    assert.commandWorked(mongosAdminDB.runCommand({setFeatureCompatibilityVersion: "3.2"}));
-    newShard = new ReplSetTest({
-        nodes: [{binVersion: downgrade}, {binVersion: downgrade}],
-        nodeOptions: {shardsvr: ""},
-        useHostName: true
-    });
-    newShard.startSet();
-    newShard.initiate();
-    assert.commandWorked(mongosAdminDB.runCommand({addShard: newShard.getURL(), name: "newShard"}));
-    assert.soon(function() {
-        var removeShardRes = mongosAdminDB.runCommand({removeShard: 'newShard'});
-        assert.commandWorked(removeShardRes);
-        return removeShardRes.state === 'completed';
-    });
-    newShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
+    downgradeShard.startSet();
+    downgradeShard.initiate();
+    assert.commandFailed(mongosAdminDB.runCommand({addShard: downgradeShard.getURL()}));
+    downgradeShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
 
     // A 3.4 shard added to a cluster with featureCompatibilityVersion=3.2 gets
     // featureCompatibilityVersion=3.2.
     assert.commandWorked(mongosAdminDB.runCommand({setFeatureCompatibilityVersion: "3.2"}));
-    newShard = new ReplSetTest({
+    var latestShard = new ReplSetTest({
+        name: "latestShard",
         nodes: [{binVersion: latest}, {binVersion: latest}],
         nodeOptions: {shardsvr: ""},
         useHostName: true
     });
-    newShard.startSet();
-    newShard.initiate();
-    assert.commandWorked(mongosAdminDB.runCommand({addShard: newShard.getURL()}));
-    newShardPrimaryAdminDB = newShard.getPrimary().getDB("admin");
-    res = newShardPrimaryAdminDB.runCommand({getParameter: 1, featureCompatibilityVersion: 1});
+    latestShard.startSet();
+    latestShard.initiate();
+    assert.commandWorked(mongosAdminDB.runCommand({addShard: latestShard.getURL()}));
+    var latestShardPrimaryAdminDB = latestShard.getPrimary().getDB("admin");
+    res = latestShardPrimaryAdminDB.runCommand({getParameter: 1, featureCompatibilityVersion: 1});
     assert.commandWorked(res);
     assert.eq(res.featureCompatibilityVersion, "3.2");
-    newShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
 
+    // Adding a 3.2 shard to a cluster with featureCompatibilityVersion=3.2 succeeds.
+    downgradeShard = new ReplSetTest({
+        name: "downgradeShard",
+        nodes: [{binVersion: downgrade}, {binVersion: downgrade}],
+        nodeOptions: {shardsvr: ""},
+        useHostName: true
+    });
+    downgradeShard.startSet();
+    downgradeShard.initiate();
+    assert.commandWorked(mongosAdminDB.runCommand({addShard: downgradeShard.getURL()}));
+
+    downgradeShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
+    latestShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
     st.stop();
 })();

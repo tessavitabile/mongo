@@ -67,7 +67,7 @@ public:
     }
 
     bool supportsWriteConcern(const BSONObj& cmd) const override {
-        return true;
+        return false;
     }
 
     Status checkAuthForCommand(Client* client,
@@ -86,55 +86,40 @@ public:
              int options,
              std::string& errmsg,
              BSONObjBuilder& result) override {
-        if (serverGlobalParams.clusterRole != ClusterRole::ConfigServer) {
-            return appendCommandStatus(
-                result,
-                Status(
-                    ErrorCodes::IllegalOperation,
-                    "_configsvrSetFeatureCompatibilityVersion can only be run on config servers"));
-        }
+        uassert(ErrorCodes::IllegalOperation,
+                "_configsvrSetFeatureCompatibilityVersion can only be run on config servers",
+                serverGlobalParams.clusterRole == ClusterRole::ConfigServer);
 
         // Validate command.
         std::string version;
         for (auto&& elem : cmdObj) {
             if (elem.fieldNameStringData() == "_configsvrSetFeatureCompatibilityVersion") {
-                if (elem.type() != BSONType::String) {
-                    return appendCommandStatus(result,
-                                               Status(ErrorCodes::TypeMismatch,
-                                                      str::stream()
-                                                          << "_configsvrSetFeatureCompatibilityVers"
-                                                             "ion must be a string, not a "
-                                                          << typeName(elem.type())));
-                }
+                uassert(ErrorCodes::TypeMismatch,
+                        str::stream() << "_configsvrSetFeatureCompatibilityVersion must be of type "
+                                         "String, but was of type "
+                                      << typeName(elem.type()),
+                        elem.type() == BSONType::String);
                 version = elem.String();
             } else {
-                return appendCommandStatus(
-                    result,
-                    Status(ErrorCodes::FailedToParse,
-                           str::stream() << "unrecognized field '" << elem.fieldName() << "'"));
+                uasserted(ErrorCodes::FailedToParse,
+                          str::stream() << "unrecognized field '" << elem.fieldName() << "'");
             }
         }
 
-        if (version != FeatureCompatibilityVersion::kVersion34 &&
-            version != FeatureCompatibilityVersion::kVersion32) {
-            return appendCommandStatus(
-                result,
-                Status(ErrorCodes::BadValue,
-                       str::stream()
-                           << "invalid value for _configsvrSetFeatureCompatibilityVersion: "
-                           << version
-                           << ", expected '"
-                           << FeatureCompatibilityVersion::kVersion34
-                           << "' or '"
-                           << FeatureCompatibilityVersion::kVersion32
-                           << "'"));
-        }
+        uassert(
+            ErrorCodes::BadValue,
+            str::stream() << "invalid value for _configsvrSetFeatureCompatibilityVersion , found "
+                          << version
+                          << ", expected '"
+                          << FeatureCompatibilityVersion::kVersion34
+                          << "' or '"
+                          << FeatureCompatibilityVersion::kVersion32
+                          << "'",
+            version == FeatureCompatibilityVersion::kVersion34 ||
+                version == FeatureCompatibilityVersion::kVersion32);
 
         // Set featureCompatibilityVersion on self.
-        auto status = FeatureCompatibilityVersion::set(txn, version);
-        if (!status.isOK()) {
-            return appendCommandStatus(result, status);
-        }
+        FeatureCompatibilityVersion::set(txn, version);
 
         // Forward to all shards.
         // TODO: Prevent shards from being added during this process.
@@ -152,14 +137,8 @@ public:
                                   "admin",
                                   BSON(FeatureCompatibilityVersion::kCommandName << version),
                                   Shard::RetryPolicy::kIdempotent);
-
-            if (!response.isOK()) {
-                return appendCommandStatus(result, response.getStatus());
-            }
-
-            if (!response.getValue().commandStatus.isOK()) {
-                return appendCommandStatus(result, response.getValue().commandStatus);
-            }
+            uassertStatusOK(response);
+            uassertStatusOK(response.getValue().commandStatus);
         }
 
         return true;

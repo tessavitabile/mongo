@@ -569,6 +569,10 @@ function assertDBsEq(db1, db2) {
 function assertSameData(primary, conns) {
     var dbs = primary.getDBs().databases;
     for (var i in dbs) {
+        // Skip the admin db due to admin.system.version collection on 3.4.
+        if (dbs[i].name === "admin") {
+            continue;
+        }
         var db1 = primary.getDB(dbs[i].name);
         for (var j in conns) {
             var conn = conns[j];

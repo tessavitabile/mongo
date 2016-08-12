@@ -79,28 +79,9 @@ void OpObserver::onInserts(OperationContext* txn,
         }
     }
 
-    // If we updated featureCompatibilityVersion in admin.system.version, cache it as a server
-    // parameter.
     if (nss.ns() == FeatureCompatibilityVersion::kCollection) {
         for (auto it = begin; it != end; it++) {
-            BSONElement idElement = (*it)["_id"];
-            invariant(idElement);
-            if (idElement.type() == BSONType::String &&
-                idElement.String() == FeatureCompatibilityVersion::kParameterName) {
-                auto versionElement = (*it)[FeatureCompatibilityVersion::kVersionField];
-                invariant(versionElement);
-                invariant(versionElement.type() == BSONType::String);
-                auto version = versionElement.String();
-                if (version == FeatureCompatibilityVersion::kVersion34) {
-                    serverGlobalParams.featureCompatibilityVersion.store(
-                        ServerGlobalParams::FeatureCompatibilityVersion_34);
-                } else if (version == FeatureCompatibilityVersion::kVersion32) {
-                    serverGlobalParams.featureCompatibilityVersion.store(
-                        ServerGlobalParams::FeatureCompatibilityVersion_32);
-                } else {
-                    invariant(false);
-                }
-            }
+            FeatureCompatibilityVersion::onInsertOrUpdate(*it);
         }
     }
 
@@ -138,27 +119,8 @@ void OpObserver::onUpdate(OperationContext* txn, const OplogUpdateEntryArgs& arg
         DurableViewCatalog::onExternalChange(txn, nss);
     }
 
-    // If we updated featureCompatibilityVersion in admin.system.version, cache it as a server
-    // parameter.
     if (args.ns == FeatureCompatibilityVersion::kCollection) {
-        BSONElement idElement = args.updatedDoc["_id"];
-        invariant(idElement);
-        if (idElement.type() == BSONType::String &&
-            idElement.String() == FeatureCompatibilityVersion::kParameterName) {
-            auto versionElement = args.updatedDoc[FeatureCompatibilityVersion::kVersionField];
-            invariant(versionElement);
-            invariant(versionElement.type() == BSONType::String);
-            auto version = versionElement.String();
-            if (version == FeatureCompatibilityVersion::kVersion34) {
-                serverGlobalParams.featureCompatibilityVersion.store(
-                    ServerGlobalParams::FeatureCompatibilityVersion_34);
-            } else if (version == FeatureCompatibilityVersion::kVersion32) {
-                serverGlobalParams.featureCompatibilityVersion.store(
-                    ServerGlobalParams::FeatureCompatibilityVersion_32);
-            } else {
-                invariant(false);
-            }
-        }
+        FeatureCompatibilityVersion::onInsertOrUpdate(args.updatedDoc);
     }
 }
 

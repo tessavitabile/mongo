@@ -28,6 +28,7 @@
 
 #include "mongo/platform/basic.h"
 
+#include "mongo/db/auth/authorization_session.h"
 #include "mongo/db/commands.h"
 #include "mongo/db/commands/feature_compatibility_version.h"
 
@@ -57,7 +58,7 @@ public:
     }
 
     virtual bool supportsWriteConcern(const BSONObj& cmd) const override {
-        return true;
+        return false;
     }
 
     virtual void help(std::stringstream& help) const {
@@ -65,10 +66,14 @@ public:
                 "are available";
     }
 
-    virtual Status checkAuthForCommand(Client* client,
-                                       const std::string& dbname,
-                                       const BSONObj& cmdObj) {
-        // TODO: What should this be?
+    Status checkAuthForCommand(Client* client,
+                               const std::string& dbname,
+                               const BSONObj& cmdObj) override {
+        if (!AuthorizationSession::get(client)->isAuthorizedForActionsOnResource(
+                ResourcePattern::forClusterResource(),
+                ActionType::setFeatureCompatibilityVersion)) {
+            return Status(ErrorCodes::Unauthorized, "Unauthorized");
+        }
         return Status::OK();
     }
 
@@ -83,44 +88,32 @@ public:
         std::string version;
         for (auto&& elem : cmdObj) {
             if (elem.fieldNameStringData() == FeatureCompatibilityVersion::kCommandName) {
-                if (elem.type() != BSONType::String) {
-                    return appendCommandStatus(
-                        result,
-                        Status(ErrorCodes::TypeMismatch,
-                               str::stream() << FeatureCompatibilityVersion::kCommandName
-                                             << " must be a string, not a "
-                                             << typeName(elem.type())));
-                }
+                uassert(ErrorCodes::TypeMismatch,
+                        str::stream() << FeatureCompatibilityVersion::kCommandName
+                                      << " must be of type String, but was of type "
+                                      << typeName(elem.type()),
+                        elem.type() == BSONType::String);
                 version = elem.String();
             } else {
-                return appendCommandStatus(
-                    result,
-                    Status(ErrorCodes::FailedToParse,
-                           str::stream() << "unrecognized field '" << elem.fieldName() << "'"));
+                uasserted(ErrorCodes::FailedToParse,
+                          str::stream() << "unrecognized field '" << elem.fieldName() << "'");
             }
         }
 
-        if (version != FeatureCompatibilityVersion::kVersion34 &&
-            version != FeatureCompatibilityVersion::kVersion32) {
-            return appendCommandStatus(result,
-                                       Status(ErrorCodes::BadValue,
-                                              str::stream()
-                                                  << "invalid value for "
-                                                  << FeatureCompatibilityVersion::kCommandName
-                                                  << ": "
-                                                  << version
-                                                  << ", expected '"
-                                                  << FeatureCompatibilityVersion::kVersion34
-                                                  << "' or '"
-                                                  << FeatureCompatibilityVersion::kVersion32
-                                                  << "'"));
-        }
+        uassert(ErrorCodes::BadValue,
+                str::stream() << "invalid value for " << FeatureCompatibilityVersion::kCommandName
+                              << ", found "
+                              << version
+                              << ", expected '"
+                              << FeatureCompatibilityVersion::kVersion34
+                              << "' or '"
+                              << FeatureCompatibilityVersion::kVersion32
+                              << "'",
+                version == FeatureCompatibilityVersion::kVersion34 ||
+                    version == FeatureCompatibilityVersion::kVersion32);
 
         // Set featureCompatibilityVersion.
-        auto status = FeatureCompatibilityVersion::set(txn, version);
-        if (!status.isOK()) {
-            return appendCommandStatus(result, status);
-        }
+        FeatureCompatibilityVersion::set(txn, version);
 
         return true;
     }

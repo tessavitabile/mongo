@@ -138,9 +138,6 @@ struct ServerGlobalParams {
     // queryableBackupMode.
     BSONObj overrideShardIdentity;
 
-    // Read-only parameter featureCompatibilityVersion.
-    AtomicInt32 featureCompatibilityVersion;
-
     enum FeatureCompatibilityVersions {
         /**
          * There may be 3.2 nodes in the cluster, so some 3.4 features are not allowed. Default
@@ -153,6 +150,9 @@ struct ServerGlobalParams {
          */
         FeatureCompatibilityVersion_34
     };
+
+    // Read-only parameter featureCompatibilityVersion.
+    AtomicWord<FeatureCompatibilityVersions> featureCompatibilityVersion;
 };
 
 extern ServerGlobalParams serverGlobalParams;
