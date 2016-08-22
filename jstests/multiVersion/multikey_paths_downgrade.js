@@ -94,7 +94,6 @@
                "mongod should have been able to upgrade directly from " +
                    version32DowngradeFailure + " to the latest version; options: " +
                    tojson(options));
-
     testDB = conn.getDB("test");
 
     // The index created on 3.2 shouldn't have path-level multikey information, but it should be
