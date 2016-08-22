@@ -350,7 +350,7 @@ BSONObj DBClientCursor::next() {
             "Got invalid BSON from external server while reading from cursor.",
             validateBSON(batch.data,
                          batch.remainingBytes,
-                         enableBSON1_1 ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
+                         enableBSON1_1() ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
                 .isOK());
 
     BSONObj o(batch.data);

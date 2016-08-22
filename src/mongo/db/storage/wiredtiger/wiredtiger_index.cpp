@@ -196,7 +196,7 @@ StatusWith<std::string> WiredTigerIndex::generateCreateString(const std::string&
 
     // Index metadata
     ss << ",app_metadata=("
-       << "formatVersion=" << (enableBSON1_1 ? kKeyStringV1Version : kKeyStringV0Version) << ','
+       << "formatVersion=" << (enableBSON1_1() ? kKeyStringV1Version : kKeyStringV0Version) << ','
        << "infoObj=" << desc.infoObj().jsonString() << "),";
 
     LOG(3) << "index create string: " << ss.ss.str();

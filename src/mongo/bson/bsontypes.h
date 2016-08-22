@@ -56,12 +56,6 @@ extern const BSONObj kMinBSONKey;
 enum class BSONVersion { kV1_0, kV1_1, kLatest = kV1_1 };
 
 /**
-    Flag that determines whether we should accept decimal types in object validation, and default
-    to KeyString V1 indexes on non-MMAP storage engines. Set by enableBSON1_1 server parameter.
-*/
-extern bool enableBSON1_1;
-
-/**
     the complete list of valid BSON types
     see also bsonspec.org
 */
@@ -123,6 +117,13 @@ const char* typeName(BSONType type);
  * Prints the name of the argument's type to the given stream.
  */
 std::ostream& operator<<(std::ostream& stream, BSONType type);
+
+/**
+ * Flag that determines whether we should accept decimal types in object validation, and default to
+ * KeyString V1 indexes on non-MMAP storage engines. Determined by the featureCompatibilityVersion
+ * server parameter.
+*/
+bool enableBSON1_1();
 
 /**
  * Returns whether or not 'type' can be converted to a valid BSONType.

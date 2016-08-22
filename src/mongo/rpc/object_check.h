@@ -48,7 +48,7 @@ struct Validator<BSONObj> {
 
     inline static Status validateLoad(const char* ptr, size_t length) {
         return serverGlobalParams.objcheck
-            ? validateBSON(ptr, length, enableBSON1_1 ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
+            ? validateBSON(ptr, length, enableBSON1_1() ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
             : Status::OK();
     }
 

@@ -73,7 +73,7 @@ LegacyReply::LegacyReply(const Message* message) : _message(std::move(message)) 
                 "Got legacy command reply with invalid BSON in the metadata field.",
                 validateBSON(qr.data(),
                              qr.dataLen(),
-                             enableBSON1_1 ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
+                             enableBSON1_1() ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
                     .isOK());
     }
 
