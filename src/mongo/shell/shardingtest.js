@@ -1209,8 +1209,11 @@ var ShardingTest = function(params) {
     // Wait for master to be elected before starting mongos
     var csrsPrimary = this.configRS.getPrimary();
 
-    // If we have mixed version shards, set featureCompatibilityVersion=3.2 on the config servers.
-    if (jsTestOptions().shardMixedBinVersions) {
+    // If we have a mixed version cluster, set featureCompatibilityVersion=3.2 on the config
+    // servers.
+    if (jsTestOptions().shardMixedBinVersions ||
+        (otherParams.mongosOptions && otherParams.mongosOptions.binVersion &&
+         otherParams.mongosOptions.binVersion === '3.2')) {
         function setFeatureCompatibilityVersion() {
             assert.commandWorked(csrsPrimary.adminCommand({setFeatureCompatibilityVersion: '3.2'}));
         }

@@ -78,7 +78,7 @@ StatusWith<ServerGlobalParams::FeatureCompatibilityVersions> FeatureCompatibilit
                               str::stream() << "Invalid value for "
                                             << FeatureCompatibilityVersion::kVersionField
                                             << ", found "
-                                            << version
+                                            << elem.String()
                                             << ", expected '"
                                             << FeatureCompatibilityVersion::kVersion34
                                             << "' or '"
