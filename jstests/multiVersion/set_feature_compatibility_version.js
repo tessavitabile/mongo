@@ -2,7 +2,7 @@
 (function() {
     "use strict";
 
-    load('jstests/libs/override_methods/sharding_continuous_config_stepdown.js');
+    load('jstests/libs/override_methods/multiversion_override_balancer_control.js');
 
     var res;
     const latest = "latest";
@@ -151,7 +151,7 @@
     // setFeatureCompatibilityVersion cannot be run on secondary.
     assert.commandFailed(secondaryAdminDB.runCommand({setFeatureCompatibilityVersion: "3.4"}));
 
-    rst.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
+    rst.stopSet();
 
     // A 3.4 secondary with a 3.2 primary will have featureCompatibilityVersion=3.2.
     rst = new ReplSetTest({nodes: [{binVersion: downgrade}, {binVersion: latest}]});
@@ -165,7 +165,7 @@
     res = secondaryAdminDB.runCommand({getParameter: 1, featureCompatibilityVersion: 1});
     assert.commandWorked(res);
     assert.eq(res.featureCompatibilityVersion, "3.2");
-    rst.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
+    rst.stopSet();
 
     //
     // Sharding tests.
@@ -261,7 +261,7 @@
         shardPrimaryAdminDB.system.version.findOne({_id: "featureCompatibilityVersion"}).version,
         "3.4");
 
-    latestShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
+    latestShard.stopSet();
     st.stop();
 
     // Create cluster with 3.2 mongos so that we can add 3.2 shards.
@@ -286,6 +286,6 @@
     downgradeShard.initiate();
     assert.commandWorked(mongosAdminDB.runCommand({addShard: downgradeShard.getURL()}));
 
-    downgradeShard.stopSet(undefined, false, {allowedExitCodes: [MongoRunner.EXIT_ABRUPT]});
+    downgradeShard.stopSet();
     st.stop();
 })();
