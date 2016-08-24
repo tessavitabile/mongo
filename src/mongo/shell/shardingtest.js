@@ -1209,12 +1209,39 @@ var ShardingTest = function(params) {
     // Wait for master to be elected before starting mongos
     var csrsPrimary = this.configRS.getPrimary();
 
-    // If we have a 3.2 shard or a 3.2 mongos, then we set the featureCompatibilityVersino to 3.2 on
-    // the CSRS. We do this because older versions of mongod and mongos are unable to interact with
-    // a mongod having featureCompatibilityVersion set to 3.4.
-    if (jsTestOptions().shardMixedBinVersions ||
-        (otherParams.mongosOptions && otherParams.mongosOptions.binVersion &&
-         otherParams.mongosOptions.binVersion === '3.2')) {
+    // If we have a 3.2 shard or a 3.2 mongos and a 3.4 CSRS, then we set the
+    // featureCompatibilityVersion to 3.2 on the CSRS. We do this because older versions of mongod
+    // and mongos are unable to interact with a mongod having featureCompatibilityVersion set to
+    // 3.4.
+    var shouldSetFeatureCompatibilityVersion = false;
+    if (jsTestOptions().shardMixedBinVersions) {
+        shouldSetFeatureCompatibilityVersion = true;
+    }
+    if (otherParams.shardOptions && otherParams.mongosOptions.shardOptions &&
+        otherParams.shardOptions.binVersion === '3.2') {
+        shouldSetFeatureCompatibilityVersion = true;
+    }
+    for (var i = 0; i < numShards; i++) {
+        if (otherParams['d' + i] && otherParams['d' + i].binVersion &&
+            otherParams['d' + i].binVersion === '3.2') {
+            shouldSetFeatureCompatibilityVersion = true;
+        }
+    }
+    if (otherParams.mongosOptions && otherParams.mongosOptions.binVersion &&
+        otherParams.mongosOptions.binVersion === '3.2') {
+        shouldSetFeatureCompatibilityVersion = true;
+    }
+    for (var i = 0; i < numMongos; i++) {
+        if (otherParams['s' + i] && otherParams['s' + i].binVersion &&
+            otherParams['s' + i].binVersion === '3.2') {
+            shouldSetFeatureCompatibilityVersion = true;
+        }
+    }
+    if (otherParams.configOptions && otherParams.configOptions.binVersion &&
+        otherParams.configOptions.binVersion === '3.2') {
+        shouldSetFeatureCompatibilityVersion = false;
+    }
+    if (shouldSetFeatureCompatibilityVersion) {
         function setFeatureCompatibilityVersion() {
             assert.commandWorked(csrsPrimary.adminCommand({setFeatureCompatibilityVersion: '3.2'}));
         }
