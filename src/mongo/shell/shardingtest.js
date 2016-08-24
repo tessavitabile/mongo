@@ -1217,7 +1217,7 @@ var ShardingTest = function(params) {
     if (jsTestOptions().shardMixedBinVersions) {
         shouldSetFeatureCompatibilityVersion = true;
     }
-    if (otherParams.shardOptions && otherParams.mongosOptions.shardOptions &&
+    if (otherParams.shardOptions && otherParams.shardOptions.shardOptions &&
         otherParams.shardOptions.binVersion === '3.2') {
         shouldSetFeatureCompatibilityVersion = true;
     }
