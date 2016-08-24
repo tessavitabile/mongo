@@ -1209,39 +1209,44 @@ var ShardingTest = function(params) {
     // Wait for master to be elected before starting mongos
     var csrsPrimary = this.configRS.getPrimary();
 
-    // If we have a 3.2 shard or a 3.2 mongos and a 3.4 CSRS, then we set the
-    // featureCompatibilityVersion to 3.2 on the CSRS. We do this because older versions of mongod
-    // and mongos are unable to interact with a mongod having featureCompatibilityVersion set to
-    // 3.4.
-    var shouldSetFeatureCompatibilityVersion = false;
-    if (jsTestOptions().shardMixedBinVersions) {
-        shouldSetFeatureCompatibilityVersion = true;
-    }
-    if (otherParams.shardOptions && otherParams.shardOptions.shardOptions &&
-        otherParams.shardOptions.binVersion === '3.2') {
-        shouldSetFeatureCompatibilityVersion = true;
-    }
-    for (var i = 0; i < numShards; i++) {
-        if (otherParams['d' + i] && otherParams['d' + i].binVersion &&
-            otherParams['d' + i].binVersion === '3.2') {
-            shouldSetFeatureCompatibilityVersion = true;
+    /**
+     * Helper method to check whether we should set featureCompatibilityVersion to 3.2 on the CSRS.
+     * We do this if we have a 3.2 shard or a 3.2 mongos and a 3.4 CSRS because older versions of
+     * mongod and mongos are unable to interact with a mongod having featureCompatibilityVersion set
+     * to 3.4.
+     */
+    function shouldSetFeatureCompatibilityVersion32() {
+        if (otherParams.configOptions && otherParams.configOptions.binVersion &&
+            otherParams.configOptions.binVersion === '3.2') {
+            return false;
         }
-    }
-    if (otherParams.mongosOptions && otherParams.mongosOptions.binVersion &&
-        otherParams.mongosOptions.binVersion === '3.2') {
-        shouldSetFeatureCompatibilityVersion = true;
-    }
-    for (var i = 0; i < numMongos; i++) {
-        if (otherParams['s' + i] && otherParams['s' + i].binVersion &&
-            otherParams['s' + i].binVersion === '3.2') {
-            shouldSetFeatureCompatibilityVersion = true;
+        if (jsTestOptions().shardMixedBinVersions) {
+            return true;
         }
+        if (otherParams.shardOptions && otherParams.shardOptions.binVersion &&
+            otherParams.shardOptions.binVersion === '3.2') {
+            return true;
+        }
+        for (var i = 0; i < numShards; i++) {
+            if (otherParams['d' + i] && otherParams['d' + i].binVersion &&
+                otherParams['d' + i].binVersion === '3.2') {
+                return true;
+            }
+        }
+        if (otherParams.mongosOptions && otherParams.mongosOptions.binVersion &&
+            otherParams.mongosOptions.binVersion === '3.2') {
+            return true;
+        }
+        for (var i = 0; i < numMongos; i++) {
+            if (otherParams['s' + i] && otherParams['s' + i].binVersion &&
+                otherParams['s' + i].binVersion === '3.2') {
+                return true;
+            }
+        }
+        return false;
     }
-    if (otherParams.configOptions && otherParams.configOptions.binVersion &&
-        otherParams.configOptions.binVersion === '3.2') {
-        shouldSetFeatureCompatibilityVersion = false;
-    }
-    if (shouldSetFeatureCompatibilityVersion) {
+
+    if (shouldSetFeatureCompatibilityVersion32()) {
         function setFeatureCompatibilityVersion() {
             assert.commandWorked(csrsPrimary.adminCommand({setFeatureCompatibilityVersion: '3.2'}));
         }
