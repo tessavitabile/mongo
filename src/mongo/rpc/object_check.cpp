@@ -34,10 +34,6 @@
 
 namespace mongo {
 
-BSONVersion Validator<BSONObj>::validateVersion() {
-    return enableBSON1_1() ? BSONVersion::kV1_1 : BSONVersion::kV1_0;
-}
-
 Status Validator<BSONObj>::validateStore(const BSONObj& toStore) {
     return Status::OK();
 }

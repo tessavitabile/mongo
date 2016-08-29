@@ -44,11 +44,14 @@ class Status;
  */
 template <>
 struct Validator<BSONObj> {
-    static BSONVersion validateVersion();
+    inline static BSONVersion enabledBSONVersion() {
+        return serverGlobalParams.featureCompatibilityVersion.load() ==
+        ServerGlobalParams::FeatureCompatibilityVersion_34 ? BSONVersion::kV1_1 : BSONVersion::kV1_0;
+    }
 
     inline static Status validateLoad(const char* ptr, size_t length) {
         return serverGlobalParams.objcheck
-            ? validateBSON(ptr, length, enableBSON1_1() ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
+            ? validateBSON(ptr, length, enabledBSONVersion())
             : Status::OK();
     }
 

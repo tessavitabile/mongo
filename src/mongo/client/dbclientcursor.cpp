@@ -40,6 +40,7 @@
 #include "mongo/rpc/factory.h"
 #include "mongo/rpc/get_status_from_command_result.h"
 #include "mongo/rpc/metadata.h"
+#include "mongo/rpc/object_check.h"
 #include "mongo/rpc/request_builder_interface.h"
 #include "mongo/s/stale_exception.h"
 #include "mongo/stdx/memory.h"
@@ -350,7 +351,7 @@ BSONObj DBClientCursor::next() {
             "Got invalid BSON from external server while reading from cursor.",
             validateBSON(batch.data,
                          batch.remainingBytes,
-                         enableBSON1_1() ? BSONVersion::kV1_1 : BSONVersion::kV1_0)
+                         _enabledBSONVersion)
                 .isOK());
 
     BSONObj o(batch.data);
@@ -510,7 +511,8 @@ DBClientCursor::DBClientCursor(DBClientBase* client,
       resultFlags(0),
       cursorId(cursorId),
       _ownCursor(true),
-      wasError(false) {}
+      wasError(false),
+      _enabledBSONVersion(Validator<BSONObj>::enabledBSONVersion()) {}
 
 DBClientCursor::~DBClientCursor() {
     kill();

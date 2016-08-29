@@ -99,9 +99,9 @@ string BSONObj::jsonString(JsonStringFormat format, int pretty, bool isArray) co
     return s.str();
 }
 
-bool BSONObj::valid() const {
+/*bool BSONObj::valid() const {
     return validateBSON(objdata(), objsize()).isOK();
-}
+}*/
 
 int BSONObj::woCompare(const BSONObj& r,
                        const Ordering& o,

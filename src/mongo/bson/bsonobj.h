@@ -546,7 +546,7 @@ public:
     BSONObj replaceFieldNames(const BSONObj& obj) const;
 
     /** true unless corrupt */
-    bool valid() const;
+    //bool valid() const;
 
     enum MatchType {
         Equality = 0,

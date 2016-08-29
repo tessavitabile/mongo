@@ -32,6 +32,7 @@
 #include "mongo/db/dbmessage.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/platform/strnlen.h"
+#include "mongo/rpc/object_check.h"
 #include "mongo/transport/session.h"
 
 namespace mongo {
@@ -125,7 +126,7 @@ BSONObj DbMessage::nextJsObj() {
             _nextjsobj != NULL && _theEnd - _nextjsobj >= 5);
 
     if (serverGlobalParams.objcheck) {
-        Status status = validateBSON(_nextjsobj, _theEnd - _nextjsobj);
+        Status status = validateBSON(_nextjsobj, _theEnd - _nextjsobj, Validator<BSONObj>::enabledBSONVersion());
         massert(10307,
                 str::stream() << "Client Error: bad object in message: " << status.reason(),
                 status.isOK());

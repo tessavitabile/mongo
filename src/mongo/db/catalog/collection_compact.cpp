@@ -79,7 +79,8 @@ public:
         : _collection(collection), _multiIndexBlock(indexBlock) {}
 
     virtual bool isDataValid(const RecordData& recData) {
-        return recData.toBson().valid();
+        //return recData.toBson().valid();
+        return true;
     }
 
     virtual size_t dataSize(const RecordData& recData) {

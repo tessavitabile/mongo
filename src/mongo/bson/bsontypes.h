@@ -119,13 +119,6 @@ const char* typeName(BSONType type);
 std::ostream& operator<<(std::ostream& stream, BSONType type);
 
 /**
- * Flag that determines whether we should accept decimal types in object validation, and default to
- * KeyString V1 indexes on non-MMAP storage engines. Determined by the featureCompatibilityVersion
- * server parameter.
-*/
-bool enableBSON1_1();
-
-/**
  * Returns whether or not 'type' can be converted to a valid BSONType.
  */
 bool isValidBSONType(int type);

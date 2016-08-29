@@ -31,7 +31,6 @@
 
 #include "mongo/config.h"
 #include "mongo/db/jsobj.h"
-#include "mongo/db/server_options.h"
 
 namespace mongo {
 
@@ -96,11 +95,6 @@ const char* typeName(BSONType type) {
 
 std::ostream& operator<<(std::ostream& stream, BSONType type) {
     return stream << typeName(type);
-}
-
-bool enableBSON1_1() {
-    return serverGlobalParams.featureCompatibilityVersion.load() ==
-        ServerGlobalParams::FeatureCompatibilityVersion_34;
 }
 
 bool isValidBSONType(int type) {
