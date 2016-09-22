@@ -18,7 +18,7 @@ selector:
     - jstests/aggregation/sources/facet/use_cases.js
     - jstests/aggregation/sources/graphLookup/sharded.js
     - jstests/aggregation/sources/replaceRoot/address.js
-    - jstests/aggregation/testShard1.js
+    - jstests/aggregation/testshard1.js
 
 executor:
   js_test:
