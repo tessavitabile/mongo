@@ -179,6 +179,11 @@ void DocumentSourceCursor::recordPlanSummaryStats() {
     // PlanExecutor's value.
     auto hasSortStage = _planSummaryStats.hasSortStage;
 
+    // Reset totalKeysExamined and totalDocsExamined to 0, so that we do not double-count the
+    // previous batch.
+    _planSummaryStats.totalKeysExamined = 0;
+    _planSummaryStats.totalDocsExamined = 0;
+
     Explain::getSummaryStats(*_exec, &_planSummaryStats);
 
     _planSummaryStats.hasSortStage = hasSortStage;
