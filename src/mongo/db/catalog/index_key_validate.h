@@ -50,7 +50,8 @@ Status validateKeyPattern(const BSONObj& key);
 StatusWith<BSONObj> validateIndexSpec(
     const BSONObj& indexSpec,
     const NamespaceString& expectedNamespace,
-    ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion);
+    ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion,
+    bool validateFeaturesAsMaster);
 
 /**
  * Confirms that 'indexSpec' contains only valid field names. Returns an error if an unexpected

@@ -375,4 +375,47 @@ public:
     }
 } featureCompatibilityVersionParameter;
 
+/**
+ * Startup parameter to ignore featureCompatibilityVersion checks, for use by backup.
+ * This parameter cannot be set if the node is started with --replSet, --master, or --slave.
+ * If the node is in a replica set, the value of this parameter can change at runtime.
+ */
+class InternalValidateFeaturesAsMasterParameter : public ServerParameter {
+public:
+    InternalValidateFeaturesAsMasterParameter()
+        : ServerParameter(ServerParameterSet::getGlobal(),
+                          "internalValidateFeaturesAsMaster",
+                          true,  // allowedToChangeAtStartup
+                          false  // allowedToChangeAtRuntime
+                          ) {}
+
+    virtual void append(OperationContext* txn, BSONObjBuilder& b, const std::string& name) {
+        b.append(name, serverGlobalParams.featureCompatibility.validateFeaturesAsMaster.load());
+    }
+
+    virtual Status set(const BSONElement& newValueElement) {
+        if (newValueElement.type() == BSONType::Bool) {
+            serverGlobalParams.featureCompatibility.validateFeaturesAsMaster.store(
+                newValueElement.Bool());
+            return Status::OK();
+        } else if (newValueElement.type() == BSONType::String) {
+            return setFromString(newValueElement.String());
+        } else {
+            return Status(ErrorCodes::BadValue, "can't convert value to bool");
+        }
+    }
+
+    virtual Status setFromString(const std::string& str) {
+        if (str == "true" || str == "1") {
+            serverGlobalParams.featureCompatibility.validateFeaturesAsMaster.store(true);
+            return Status::OK();
+        }
+        if (str == "false" || str == "0") {
+            serverGlobalParams.featureCompatibility.validateFeaturesAsMaster.store(false);
+            return Status::OK();
+        }
+        return Status(ErrorCodes::BadValue, "can't convert string to bool");
+    }
+} internalValidateFeaturesAsMasterParameter;
+
 }  // namespace mongo

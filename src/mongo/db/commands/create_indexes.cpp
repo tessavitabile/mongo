@@ -76,7 +76,8 @@ const StringData kWriteConcern = "writeConcern"_sd;
 StatusWith<std::vector<BSONObj>> parseAndValidateIndexSpecs(
     const NamespaceString& ns,
     const BSONObj& cmdObj,
-    ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion) {
+    ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion,
+    bool validateFeaturesAsMaster) {
     bool hasIndexesField = false;
 
     std::vector<BSONObj> indexSpecs;
@@ -99,8 +100,8 @@ StatusWith<std::vector<BSONObj>> parseAndValidateIndexSpecs(
                                           << typeName(indexesElem.type())};
                 }
 
-                auto indexSpec =
-                    validateIndexSpec(indexesElem.Obj(), ns, featureCompatibilityVersion);
+                auto indexSpec = validateIndexSpec(
+                    indexesElem.Obj(), ns, featureCompatibilityVersion, validateFeaturesAsMaster);
                 if (!indexSpec.isOK()) {
                     return indexSpec.getStatus();
                 }
@@ -247,7 +248,10 @@ public:
 
         const auto featureCompatibilityVersion =
             serverGlobalParams.featureCompatibility.version.load();
-        auto specsWithStatus = parseAndValidateIndexSpecs(ns, cmdObj, featureCompatibilityVersion);
+        const auto validateFeaturesAsMaster =
+            serverGlobalParams.featureCompatibility.validateFeaturesAsMaster.load();
+        auto specsWithStatus = parseAndValidateIndexSpecs(
+            ns, cmdObj, featureCompatibilityVersion, validateFeaturesAsMaster);
         if (!specsWithStatus.isOK()) {
             return appendCommandStatus(result, specsWithStatus.getStatus());
         }

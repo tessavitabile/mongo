@@ -107,6 +107,7 @@ bool IndexDescriptor::isIndexVersionSupported(IndexVersion indexVersion) {
 Status IndexDescriptor::isIndexVersionAllowedForCreation(
     IndexVersion indexVersion,
     ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion,
+    bool validateFeaturesAsMaster,
     const BSONObj& indexSpec) {
     switch (indexVersion) {
         case IndexVersion::kV0:
@@ -115,7 +116,8 @@ Status IndexDescriptor::isIndexVersionAllowedForCreation(
             return Status::OK();
         case IndexVersion::kV2: {
             if (ServerGlobalParams::FeatureCompatibility::Version::k32 ==
-                featureCompatibilityVersion) {
+                    featureCompatibilityVersion &&
+                validateFeaturesAsMaster) {
                 return {ErrorCodes::CannotCreateIndex,
                         str::stream() << "Invalid index specification " << indexSpec
                                       << "; cannot create an index with v="
@@ -137,8 +139,12 @@ IndexVersion IndexDescriptor::getDefaultIndexVersion(
     ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion) {
     // We pass in an empty object for the index specification because it is only used within the
     // error reason.
+    // We pass in validateFeaturesAsMaster=true, because v=2 indexes are always allowed when we are
+    // not validating features as master, but we still want to use the correct default index version
+    // according to featureCompatibilityVersion.
+    const bool validateFeaturesAsMaster = true;
     if (!IndexDescriptor::isIndexVersionAllowedForCreation(
-             IndexVersion::kV2, featureCompatibilityVersion, BSONObj())
+             IndexVersion::kV2, featureCompatibilityVersion, validateFeaturesAsMaster, BSONObj())
              .isOK()) {
         // When the featureCompatibilityVersion is 3.2, we use index version v=1 as the default
         // index version.

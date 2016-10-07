@@ -150,7 +150,8 @@ Status validateKeyPattern(const BSONObj& key) {
 StatusWith<BSONObj> validateIndexSpec(
     const BSONObj& indexSpec,
     const NamespaceString& expectedNamespace,
-    ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion) {
+    ServerGlobalParams::FeatureCompatibility::Version featureCompatibilityVersion,
+    bool validateFeaturesAsMaster) {
     bool hasKeyPatternField = false;
     bool hasNamespaceField = false;
     bool hasVersionField = false;
@@ -231,8 +232,11 @@ StatusWith<BSONObj> validateIndexSpec(
 
             const IndexVersion requestedIndexVersion =
                 static_cast<IndexVersion>(*requestedIndexVersionAsInt);
-            auto creationAllowedStatus = IndexDescriptor::isIndexVersionAllowedForCreation(
-                requestedIndexVersion, featureCompatibilityVersion, indexSpec);
+            auto creationAllowedStatus =
+                IndexDescriptor::isIndexVersionAllowedForCreation(requestedIndexVersion,
+                                                                  featureCompatibilityVersion,
+                                                                  validateFeaturesAsMaster,
+                                                                  indexSpec);
             if (!creationAllowedStatus.isOK()) {
                 return creationAllowedStatus;
             }
