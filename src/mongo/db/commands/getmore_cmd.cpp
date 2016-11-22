@@ -371,7 +371,13 @@ public:
 
         Status batchStatus = generateBatch(cursor, request, &nextBatch, &state, &numResults);
         if (!batchStatus.isOK()) {
-            return appendCommandStatus(result, batchStatus);
+            if (batchStatus.code() != ErrorCodes::ExceededTimeLimit) {
+                return appendCommandStatus(result, batchStatus);
+            }
+
+            // We exceeded the time limit generating the next batch for an awaitData cursor. Set
+            // 'state' to PlanExecutor::ADVANCED, so we do not attempt to get another batch.
+            state = PlanExecutor::ADVANCED;
         }
 
         // If this is an await data cursor, and we hit EOF without generating any results, then
@@ -408,7 +414,13 @@ public:
                 // way, attempt to generate another batch of results.
                 batchStatus = generateBatch(cursor, request, &nextBatch, &state, &numResults);
                 if (!batchStatus.isOK()) {
-                    return appendCommandStatus(result, batchStatus);
+                    if (batchStatus.code() != ErrorCodes::ExceededTimeLimit) {
+                        return appendCommandStatus(result, batchStatus);
+                    }
+
+                    // We exceeded the time limit generating the next batch for an awaitData cursor.
+                    // Set 'state' to PlanExecutor::ADVANCED, so we save the cursor.
+                    state = PlanExecutor::ADVANCED;
                 }
             }
         }
@@ -532,8 +544,8 @@ public:
             }
         } catch (const UserException& except) {
             if (isAwaitData && except.getCode() == ErrorCodes::ExceededTimeLimit) {
-                // We ignore exceptions from interrupt points due to max time expiry for
-                // awaitData cursors.
+                return Status(ErrorCodes::ExceededTimeLimit,
+                              "exceeded time limit generating next batch for awaitData cursor");
             } else {
                 throw;
             }
