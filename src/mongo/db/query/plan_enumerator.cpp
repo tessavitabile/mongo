@@ -331,6 +331,7 @@ bool PlanEnumerator::getNext(MatchExpression** tree) {
     tagForSort(*tree);
 
     _root->resetTag();
+    _root->resetMoveNodeTags();
     LOG(5) << "Enumerator: memo just before moving:" << endl << dumpMemo();
     _done = nextMemo(memoIDForNode(_root));
     return true;
@@ -555,7 +556,7 @@ bool PlanEnumerator::prepMemo(MatchExpression* node, PrepMemoContext context) {
         if (1 == mandatorySubnodes.size()) {
             AndEnumerableState aes;
             aes.subnodesToIndex.push_back(mandatorySubnodes[0]);
-            andAssignment->choices.push_back(aes);
+            andAssignment->choices.push_back(std::move(aes));
             return true;
         }
 
@@ -566,7 +567,7 @@ bool PlanEnumerator::prepMemo(MatchExpression* node, PrepMemoContext context) {
                 idxToFirst, idxToNotFirst, mandatoryPred, mandatoryIndices, andAssignment);
         }
 
-        enumerateOneIndex(idxToFirst, idxToNotFirst, subnodes, andAssignment);
+        enumerateOneIndex(idxToFirst, idxToNotFirst, subnodes, indexedPreds, andAssignment);
 
         if (_ixisect) {
             enumerateAndIntersect(idxToFirst, idxToNotFirst, subnodes, andAssignment);
@@ -744,15 +745,101 @@ bool PlanEnumerator::enumerateMandatoryIndex(const IndexToPredMap& idxToFirst,
         // Output the assignments for this index.
         AndEnumerableState state;
         state.assignments.push_back(indexAssign);
-        andAssignment->choices.push_back(state);
+        andAssignment->choices.push_back(std::move(state));
     }
 
     return andAssignment->choices.size() > 0;
 }
 
+void PlanEnumerator::prepMoveNodeTags(MemoID memoID,
+                                      MatchExpression* expr,
+                                      std::vector<size_t> path) {
+    NodeAssignment* assignment = _memo[memoID];
+    invariant(assignment);
+
+    if (assignment->pred) {
+        PredicateAssignment* pred = assignment->pred.get();
+        RelevantTag* relevantTag = static_cast<RelevantTag*>(expr->getTag());
+
+        // TODO: should this also consider "first" indexes for this predicate?
+        const auto& indexes = relevantTag->notFirst;
+
+        for (auto index : pred->first) {
+            if (std::find(indexes.begin(), indexes.end(), index) != indexes.end()) {
+                const auto& indexEntry = (*_indices)[index];
+
+                // TODO: Determine whether we can combine bounds.
+                if (indexEntry.multikey) {
+                    continue;
+                }
+
+                MatchExpression::MoveNodeTag moveNodeTag;
+                moveNodeTag.path = path;
+
+                // The index is not multikey, so we can combine bounds.
+                const bool canCombineBounds = true;
+
+                moveNodeTag.tagData = stdx::make_unique<IndexTag>(
+                    index, getPosition(indexEntry, relevantTag->path), canCombineBounds);
+                pred->moveNodeTags[index][expr] = std::move(moveNodeTag);
+            }
+        }
+    } else if (assignment->orAssignment) {
+        OrAssignment* orAssignment = assignment->orAssignment.get();
+        for (size_t i = 0; i < orAssignment->subnodes.size(); ++i) {
+            auto pathCopy = path;
+            pathCopy.push_back(i);
+            prepMoveNodeTags(orAssignment->subnodes[i], expr, std::move(pathCopy));
+        }
+    } else if (assignment->arrayAssignment) {
+        ArrayAssignment* arrayAssignment = assignment->arrayAssignment.get();
+        for (auto subnode : arrayAssignment->subnodes) {
+            prepMoveNodeTags(subnode, expr, path);
+        }
+    } else if (assignment->andAssignment) {
+        AndAssignment* andAssignment = assignment->andAssignment.get();
+        RelevantTag* relevantTag = static_cast<RelevantTag*>(expr->getTag());
+
+        // TODO: should this also consider "first" indexes for this predicate?
+        const auto& indexes = relevantTag->notFirst;
+
+        for (auto& andState : andAssignment->choices) {
+            for (const auto& oneIndexAssignment : andState.assignments) {
+                if (std::find(indexes.begin(), indexes.end(), oneIndexAssignment.index) !=
+                    indexes.end()) {
+                    const auto& indexEntry = (*_indices)[oneIndexAssignment.index];
+
+                    // TODO: Determine whether we can combine bounds.
+                    if (indexEntry.multikey) {
+                        continue;
+                    }
+
+                    MatchExpression::MoveNodeTag moveNodeTag;
+                    moveNodeTag.path = path;
+
+                    // The index is not multikey, so we can combine bounds.
+                    const bool canCombineBounds = true;
+                    
+                    moveNodeTag.tagData = stdx::make_unique<IndexTag>(
+                        oneIndexAssignment.index,
+                        getPosition(indexEntry, relevantTag->path),
+                        canCombineBounds);
+                    andState.moveNodeTags[expr] = std::move(moveNodeTag);
+                }
+            }
+            for (auto subnode : andState.subnodesToIndex) {
+                prepMoveNodeTags(subnode, expr, path);
+            }
+        }
+    } else {
+        invariant(0);
+    }
+}
+
 void PlanEnumerator::enumerateOneIndex(const IndexToPredMap& idxToFirst,
                                        const IndexToPredMap& idxToNotFirst,
                                        const vector<MemoID>& subnodes,
+                                       const vector<MatchExpression*> indexedPreds,
                                        AndAssignment* andAssignment) {
     // In the simplest case, an AndAssignment picks indices like a PredicateAssignment.  To
     // be indexed we must only pick one index
@@ -783,9 +870,16 @@ void PlanEnumerator::enumerateOneIndex(const IndexToPredMap& idxToFirst,
 
     // First, add the state of using each subnode.
     for (size_t i = 0; i < subnodes.size(); ++i) {
+
+        // The subnode may uses indexes relevant to the indexable predicates. Tag it with MoveNodeTags indicating the predicate can be copied/moved into the subnode.
+        for (auto pred : indexedPreds) {
+            std::vector<size_t> path;
+            prepMoveNodeTags(subnodes[i], pred, std::move(path));
+        }
+
         AndEnumerableState aes;
         aes.subnodesToIndex.push_back(subnodes[i]);
-        andAssignment->choices.push_back(aes);
+        andAssignment->choices.push_back(std::move(aes));
     }
 
     // For each FIRST, we assign nodes to it.
@@ -820,7 +914,7 @@ void PlanEnumerator::enumerateOneIndex(const IndexToPredMap& idxToFirst,
 
                 AndEnumerableState state;
                 state.assignments.push_back(indexAssign);
-                andAssignment->choices.push_back(state);
+                andAssignment->choices.push_back(std::move(state));
             }
         } else if (thisIndex.multikey) {
             // We don't have path-level information about what causes 'thisIndex' to be multikey.
@@ -853,7 +947,7 @@ void PlanEnumerator::enumerateOneIndex(const IndexToPredMap& idxToFirst,
                 // Output the assignment.
                 AndEnumerableState state;
                 state.assignments.push_back(indexAssign);
-                andAssignment->choices.push_back(state);
+                andAssignment->choices.push_back(std::move(state));
             }
         } else {
             // The assignment we're filling out.
@@ -880,7 +974,7 @@ void PlanEnumerator::enumerateOneIndex(const IndexToPredMap& idxToFirst,
             // Output the assignment.
             AndEnumerableState state;
             state.assignments.push_back(indexAssign);
-            andAssignment->choices.push_back(state);
+            andAssignment->choices.push_back(std::move(state));
         }
     }
 }
@@ -952,7 +1046,7 @@ void PlanEnumerator::enumerateAndIntersect(const IndexToPredMap& idxToFirst,
             }
             AndEnumerableState state;
             state.assignments.push_back(oneAssign);
-            andAssignment->choices.push_back(state);
+            andAssignment->choices.push_back(std::move(state));
             continue;
         }
 
@@ -961,7 +1055,7 @@ void PlanEnumerator::enumerateAndIntersect(const IndexToPredMap& idxToFirst,
             AndEnumerableState indexAndSubnode;
             indexAndSubnode.assignments.push_back(oneAssign);
             indexAndSubnode.subnodesToIndex.push_back(subnodes[i]);
-            andAssignment->choices.push_back(indexAndSubnode);
+            andAssignment->choices.push_back(std::move(indexAndSubnode));
             // Limit n^2.
             if (andAssignment->choices.size() - sizeBefore > _intersectLimit) {
                 return;
@@ -1128,7 +1222,7 @@ void PlanEnumerator::enumerateAndIntersect(const IndexToPredMap& idxToFirst,
             AndEnumerableState state;
             state.assignments.push_back(firstAssign);
             state.assignments.push_back(secondAssign);
-            andAssignment->choices.push_back(state);
+            andAssignment->choices.push_back(std::move(state));
         }
     }
 
@@ -1144,7 +1238,7 @@ void PlanEnumerator::enumerateAndIntersect(const IndexToPredMap& idxToFirst,
             AndEnumerableState state;
             state.subnodesToIndex.push_back(subnodes[i]);
             state.subnodesToIndex.push_back(subnodes[j]);
-            andAssignment->choices.push_back(state);
+            andAssignment->choices.push_back(std::move(state));
         }
     }
 }
@@ -1398,6 +1492,19 @@ bool PlanEnumerator::alreadyCompounded(const set<MatchExpression*>& ixisectAssig
     return false;
 }
 
+size_t PlanEnumerator::getPosition(const IndexEntry& indexEntry, const std::string& path) {
+    size_t position = 0;
+    BSONObjIterator iter(indexEntry.keyPattern);
+    while (iter.more()) {
+        if (iter.next().fieldName() == path) {
+            return position;
+        }
+        ++position;
+    }
+    invariant(0);
+    return -1;
+}
+
 void PlanEnumerator::compound(const vector<MatchExpression*>& tryCompound,
                               const IndexEntry& thisIndex,
                               OneIndexAssignment* assign) {
@@ -1449,7 +1556,17 @@ void PlanEnumerator::tagMemo(size_t id) {
         PredicateAssignment* pa = assign->pred.get();
         verify(NULL == pa->expr->getTag());
         verify(pa->indexToAssign < pa->first.size());
-        pa->expr->setTag(new IndexTag(pa->first[pa->indexToAssign]));
+        auto index = pa->first[pa->indexToAssign];
+        pa->expr->setTag(new IndexTag(index));
+
+        // Add all MoveNodeTags for this index assignment.
+        auto moveNodeTags = pa->moveNodeTags.find(index);
+        if (moveNodeTags != pa->moveNodeTags.end()) {
+            for (const auto& tag : moveNodeTags->second) {
+                auto expr = tag.first;
+                expr->addMoveNodeTag(tag.second.clone());
+            }
+        }
     } else if (NULL != assign->orAssignment) {
         OrAssignment* oa = assign->orAssignment.get();
         for (size_t i = 0; i < oa->subnodes.size(); ++i) {
@@ -1477,6 +1594,12 @@ void PlanEnumerator::tagMemo(size_t id) {
                 pred->setTag(
                     new IndexTag(assign.index, assign.positions[j], assign.canCombineBounds));
             }
+        }
+
+        // Add all MoveNodeTags for this index assignment.
+        for (const auto& tag : aes.moveNodeTags) {
+            auto expr = tag.first;
+            expr->addMoveNodeTag(tag.second.clone());
         }
     } else {
         verify(0);

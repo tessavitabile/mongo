@@ -117,6 +117,7 @@ unique_ptr<MatchExpression> WhereMatchExpression::shallowClone() const {
     if (getTag()) {
         e->setTag(getTag()->clone());
     }
+    e->setMoveNodeTags(getMoveNodeTags());
     return std::move(e);
 }
 }

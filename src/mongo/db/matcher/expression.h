@@ -230,6 +230,79 @@ public:
         }
     }
 
+    /*
+     * A MoveNodeTag indicates that the MatchExpression should be copied/moved to a different location in the MatchExpression tree.
+     */
+    struct MoveNodeTag {
+
+        /*
+         * The path along which the MatchExpression should be moved/copied. This starts at the indexed OR sibling of the MatchExpression. Each value in path is the index of a child in an indexed OR.
+         * For example, if the MatchExpression tree is:
+         *         AND
+         *        /    \
+         *   {a: 5}    OR
+         *           /    \
+         *         AND    {e: 9}
+         *       /     \   
+         *    {b: 6}   OR
+         *           /    \
+         *       {c: 7}  {d: 8}
+         * and the MatchExpression is {a: 5}, then the path {0, 1} means {a: 5} should be AND-combined with {d: 8}.
+         */
+        std::vector<size_t> path;
+
+        // The TagData that the MatchExpression should be tagged with after it is moved.
+        std::unique_ptr<TagData> tagData;
+
+        MoveNodeTag clone() const {
+            MoveNodeTag moveNodeTag;
+            moveNodeTag.path = path;
+            moveNodeTag.tagData.reset(tagData->clone());
+            return moveNodeTag;
+        }
+
+        void debugString(StringBuilder* builder) const {
+            *builder << " || Move to ";
+            bool firstPosition = true;
+            for (auto position : path) {
+                if (!firstPosition) {
+                    *builder << ".";
+                }
+                firstPosition = false;
+                *builder << position;
+            }
+            tagData->debugString(builder);
+        }
+    };
+
+    virtual void resetMoveNodeTags() {
+        _moveNodeTags.clear();
+        for (size_t i = 0; i < numChildren(); ++i) {
+            getChild(i)->resetMoveNodeTags();
+        }
+    }
+
+    void addMoveNodeTag(MoveNodeTag moveNodeTag) {
+        _moveNodeTags.push_back(std::move(moveNodeTag));
+    }
+
+    std::vector<MoveNodeTag> releaseMoveNodeTags() {
+        std::vector<MoveNodeTag> moveNodeTags;
+        moveNodeTags.swap(_moveNodeTags);
+        return moveNodeTags;
+    }
+
+    void setMoveNodeTags(const std::vector<MoveNodeTag>& moveNodeTags) {
+        _moveNodeTags.clear();
+        for (const auto& tag : moveNodeTags) {
+            _moveNodeTags.emplace_back(tag.clone());
+        }
+    }
+
+    const std::vector<MoveNodeTag>& getMoveNodeTags() const {
+        return _moveNodeTags;
+    }
+
     /**
      * Set the collator 'collator' on this match expression and all its children.
      *
@@ -262,6 +335,7 @@ protected:
 private:
     MatchType _matchType;
     std::unique_ptr<TagData> _tagData;
+    std::vector<MoveNodeTag> _moveNodeTags;
 };
 
 class FalseMatchExpression : public MatchExpression {

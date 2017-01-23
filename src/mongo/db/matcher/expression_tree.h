@@ -71,6 +71,12 @@ public:
         return child;
     }
 
+    virtual std::unique_ptr<MatchExpression> removeChild(size_t i) {
+        auto child = std::unique_ptr<MatchExpression>(_expressions[i]);
+        _expressions.erase(_expressions.begin() + i);
+        return child;
+    }
+
     virtual std::vector<MatchExpression*>* getChildVector() {
         return &_expressions;
     }
@@ -102,6 +108,7 @@ public:
         if (getTag()) {
             self->setTag(getTag()->clone());
         }
+        self->setMoveNodeTags(getMoveNodeTags());
         return std::move(self);
     }
 
@@ -126,6 +133,7 @@ public:
         if (getTag()) {
             self->setTag(getTag()->clone());
         }
+        self->setMoveNodeTags(getMoveNodeTags());
         return std::move(self);
     }
 
@@ -150,6 +158,7 @@ public:
         if (getTag()) {
             self->setTag(getTag()->clone());
         }
+        self->setMoveNodeTags(getMoveNodeTags());
         return std::move(self);
     }
 
@@ -176,6 +185,7 @@ public:
         if (getTag()) {
             self->setTag(getTag()->clone());
         }
+        self->setMoveNodeTags(getMoveNodeTags());
         return std::move(self);
     }
 

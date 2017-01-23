@@ -188,6 +188,10 @@ private:
         // predicate can directly use (the 'first' indices).  As such this value ranges from 0
         // to first.size()-1 inclusive.
         size_t indexToAssign;
+
+        // Maps each index to the expressions that should receive a MoveNodeTag when that index is assigned.
+        unordered_map<IndexID, unordered_map<MatchExpression*, MatchExpression::MoveNodeTag>>
+            moveNodeTags;
     };
 
     struct OrAssignment {
@@ -220,6 +224,9 @@ private:
     struct AndEnumerableState {
         std::vector<OneIndexAssignment> assignments;
         std::vector<MemoID> subnodesToIndex;
+
+        // The expressions that should receive a MoveNodeTag when this assignment is made.
+        unordered_map<MatchExpression*, MatchExpression::MoveNodeTag> moveNodeTags;
     };
 
     struct AndAssignment {
@@ -417,6 +424,7 @@ private:
     void enumerateOneIndex(const IndexToPredMap& idxToFirst,
                            const IndexToPredMap& idxToNotFirst,
                            const std::vector<MemoID>& subnodes,
+                           const std::vector<MatchExpression*> indexedPreds,
                            AndAssignment* andAssignment);
 
     /**
@@ -440,6 +448,16 @@ private:
     void compound(const std::vector<MatchExpression*>& tryCompound,
                   const IndexEntry& thisIndex,
                   OneIndexAssignment* assign);
+
+    /**
+     * Returns the position of 'path' in the key pattern for 'indexEntry'.
+     */
+    size_t getPosition(const IndexEntry& indexEntry, const std::string& path);
+
+    /**
+     * Traverses indexed ORs in the memo 'memoID' and decorates PredicateAssignments and AndEnumerableStates with MoveNodeTags if they specify an index that is a "notFirst" relevant index for 'expr'. When this assignment is tagged, 'expr' is tagged with the MoveNodeTags. 'path' keeps track of the path through the indexed ORs traversed so far; it is included in the MoveNodeTags to specify where 'expr' should be moved.
+     */
+    void prepMoveNodeTags(MemoID memoID, MatchExpression* expr, std::vector<size_t> path);
 
     /**
      * Return the memo entry for 'node'.  Does some sanity checking to ensure that a memo entry

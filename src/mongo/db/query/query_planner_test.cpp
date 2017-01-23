@@ -4347,4 +4347,306 @@ TEST_F(QueryPlannerTest, PlansForMultipleIndexesOnTheSameKeyPatternAreGenerated)
     assertSolutionExists("{cscan: {dir: 1}}}}");
 }
 
+TEST_F(QueryPlannerTest, ContainedOr) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{b: 6}, {c: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [[6, 6, true, true]], a: [[5, 5, true, "
+        "true]]}}},"
+        "{ixscan: {pattern: {c: 1, a: 1}, bounds: {c: [[7, 7, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrOneChildUsesPredicate) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{b: 6}, {c: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: {a: 5}, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [[6, 6, true, true]], a: [[5, 5, true, "
+        "true]]}}},"
+        "{ixscan: {pattern: {c: 1}, bounds: {c: [[7, 7, true, true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrCombineWithAnd) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "d" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{b: 6}, {$and: [{c: 7}, {d: 8}]}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [[6, 6, true, true]], a: [[5, 5, true, "
+        "true]]}}},"
+        "{ixscan: {pattern: {c: 1, d: 1, a: 1}, bounds: {c: [[7, 7, true, true]], d: [[8, 8, true, "
+        "true]], a: [[5, 5, true, true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, NestedContainedOr) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("d" << 1 << "a" << 1));
+    addIndex(BSON("e" << 1 << "a" << 1));
+
+    runQuery(
+        fromjson("{$and: [{a: 5}, {$or: [{b: 6}, {$and: [{c: 7}, {$or: [{d: 8}, {e: 9}]}]}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [[6, 6, true, true]], a: [[5, 5, true, "
+        "true]]}}},"
+        "{fetch: {filter: {c: 7}, node: {or: {nodes: ["
+        "{ixscan: {pattern: {d: 1, a: 1}, bounds: {d: [[8, 8, true, true]], a: [[5, 5, true, "
+        "true]]}}},"
+        "{ixscan: {pattern: {e: 1, a: 1}, bounds: {e: [[9, 9, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, NestedContainedOrOneChildUsesPredicate) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("d" << 1 << "a" << 1));
+    addIndex(BSON("e" << 1));
+
+    runQuery(
+        fromjson("{$and: [{a: 5}, {$or: [{b: 6}, {$and: [{c: 7}, {$or: [{d: 8}, {e: 9}]}]}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: {a: 5}, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [[6, 6, true, true]], a: [[5, 5, true, "
+        "true]]}}},"
+        "{fetch: {filter: {c: 7}, node: {or: {nodes: ["
+        "{ixscan: {pattern: {d: 1, a: 1}, bounds: {d: [[8, 8, true, true]], a: [[5, 5, true, "
+        "true]]}}},"
+        "{ixscan: {pattern: {e: 1}, bounds: {e: [[9, 9, true, true]]}}}"
+        "]}}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrNotNextInIndex) {
+    addIndex(BSON("b" << 1 << "d" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{b: 6}, {c: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, d: 1, a: 1}, bounds: {b: [[6, 6, true, true]], d: [['MinKey', "
+        "'MaxKey', true, true]], a: [[5, 5, true, true]]}}},"
+        "{ixscan: {pattern: {c: 1, a: 1}, bounds: {c: [[7, 7, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrMultiplePredicates) {
+    addIndex(BSON("c" << 1 << "a" << 1 << "b" << 1));
+    addIndex(BSON("d" << 1 << "b" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {b: 6}, {$or: [{c: 7}, {d: 8}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {c: 1, a: 1, b: 1}, bounds: {c: [[7, 7, true, true]], a: [[5, 5, true, "
+        "true]], b: [[6, 6, true, true]]}}},"
+        "{ixscan: {pattern: {d: 1, b: 1, a: 1}, bounds: {d: [[8, 8, true, true]], b: [[6, 6, true, "
+        "true]], a: [[5, 5, true, true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrIntersect) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "a" << 1));
+
+    runQuery(
+        fromjson("{$and: [{a: {$gte: 5}}, {$or: [{b: 6}, {$and: [{c: 7}, {a: {$lte: 8}}]}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [[6, 6, true, true]], a: [[5, Infinity, "
+        "true, true]]}}},"
+        "{ixscan: {pattern: {c: 1, a: 1}, bounds: {c: [[7, 7, true, true]], a: [[5, 8, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrNot) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{$nor: [{a: 5}]}, {$or: [{b: 6}, {c: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [[6, 6, true, true]], a: [['MinKey', 5, "
+        "true, false], [5, 'MaxKey', false, true]]}}},"
+        "{ixscan: {pattern: {c: 1, a: 1}, bounds: {c: [[7, 7, true, true]], a: [['MinKey', 5, "
+        "true, false], [5, 'MaxKey', false, true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrElemMatchValue) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: {$elemMatch: {$eq: 5}}}, {$or: [{b: 6}, {c: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{or: {nodes: ["
+        "{fetch: {filter: {a: {$elemMatch: {$eq: 5}}}, node: {ixscan: {pattern: {b: 1, a: 1}, "
+        "bounds: {b: [[6, 6, true, true]], a: [[5, 5, true, true]]}}}}},"
+        "{fetch: {filter: {a: {$elemMatch: {$eq: 5}}}, node: {ixscan: {pattern: {c: 1, a: 1}, "
+        "bounds: {c: [[7, 7, true, true]], a: [[5, 5, true, true]]}}}}}"
+        "]}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrElemMatchObject) {
+    addIndex(BSON("c" << 1 << "a.b" << 1));
+    addIndex(BSON("d" << 1 << "a.b" << 1));
+
+    runQuery(fromjson("{$and: [{a: {$elemMatch: {b: 5}}}, {$or: [{c: 6}, {d: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: {a: {$elemMatch: {b: 5}}}, node: {or: {nodes: ["
+        "{ixscan: {pattern: {c: 1, 'a.b': 1}, bounds: {c: [[6, 6, true, true]], 'a.b': [[5, 5, "
+        "true, true]]}}},"
+        "{ixscan: {pattern: {d: 1, 'a.b': 1}, bounds: {d: [[7, 7, true, true]], 'a.b': [[5, 5, "
+        "true, true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrElemMatchObjectMultiplePredicates) {
+    addIndex(BSON("d" << 1 << "a.b" << 1));
+    addIndex(BSON("e" << 1 << "a.c" << 1));
+
+    runQuery(fromjson("{$and: [{a: {$elemMatch: {b: 5, c: 6}}}, {$or: [{d: 7}, {e: 8}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: {a: {$elemMatch: {b: 5, c: 6}}}, node: {or: {nodes: ["
+        "{ixscan: {pattern: {d: 1, 'a.b': 1}, bounds: {d: [[7, 7, true, true]], 'a.b': [[5, 5, "
+        "true, true]]}}},"
+        "{ixscan: {pattern: {e: 1, 'a.c': 1}, bounds: {e: [[8, 8, true, true]], 'a.c': [[6, 6, "
+        "true, true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrNestedElemMatchObject) {
+    addIndex(BSON("d" << 1 << "a.b.c" << 1));
+    addIndex(BSON("e" << 1 << "a.b.c" << 1));
+
+    runQuery(fromjson(
+        "{$and: [{a: {$elemMatch: {b: {$elemMatch: {c: 5}}}}}, {$or: [{d: 6}, {e: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: {a: {$elemMatch: {b: {$elemMatch: {c: 5}}}}}, node: {or: {nodes: ["
+        "{ixscan: {pattern: {d: 1, 'a.b.c': 1}, bounds: {d: [[6, 6, true, true]], 'a.b.c': [[5, 5, "
+        "true, true]]}}},"
+        "{ixscan: {pattern: {e: 1, 'a.b.c': 1}, bounds: {e: [[7, 7, true, true]], 'a.b.c': [[5, 5, "
+        "true, true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrMoveToNot) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{$nor: [{b: 6}]}, {c: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{ixscan: {pattern: {b: 1, a: 1}, bounds: {b: [['MinKey', 6, true, false], [6, 'MaxKey', "
+        "false, true]], a: [[5, 5, true, true]]}}},"
+        "{ixscan: {pattern: {c: 1, a: 1}, bounds: {c: [[7, 7, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrMoveToElemMatchValue) {
+    addIndex(BSON("b" << 1 << "a" << 1));
+    addIndex(BSON("c" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{b: {$elemMatch: {$eq: 6}}}, {c: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{fetch: {filter: {b: {$elemMatch: {$eq: 6}}}, node: {ixscan: {pattern: {b: 1, a: 1}, "
+        "bounds: {b: [[6, 6, true, true]], a: [[5, 5, true, true]]}}}}},"
+        "{ixscan: {pattern: {c: 1, a: 1}, bounds: {c: [[7, 7, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrMoveToElemMatchObject) {
+    addIndex(BSON("b.c" << 1 << "a" << 1));
+    addIndex(BSON("d" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{b: {$elemMatch: {c: 6}}}, {d: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{fetch: {filter: {b: {$elemMatch: {c: 6}}}, node: {ixscan: {pattern: {'b.c': 1, a: 1}, "
+        "bounds: {'b.c': [[6, 6, true, true]], a: [[5, 5, true, true]]}}}}},"
+        "{ixscan: {pattern: {d: 1, a: 1}, bounds: {d: [[7, 7, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrMoveToElemMatchObjectMultiplePredicates) {
+    addIndex(BSON("b.c" << 1 << "a" << 1 << "b.d" << 1));
+    addIndex(BSON("e" << 1 << "a" << 1));
+
+    runQuery(fromjson("{$and: [{a: 5}, {$or: [{b: {$elemMatch: {c: 6, d: 7}}}, {e: 8}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{fetch: {filter: {b: {$elemMatch: {c: 6, d: 7}}}, node: {ixscan: {pattern: {'b.c': 1, a: "
+        "1, 'b.d': 1}, bounds: {'b.c': [[6, 6, true, true]], a: [[5, 5, true, true]], 'b.d': [[7, "
+        "7, true, true]]}}}}},"
+        "{ixscan: {pattern: {e: 1, a: 1}, bounds: {e: [[8, 8, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
+TEST_F(QueryPlannerTest, ContainedOrMoveToNestedElemMatchObject) {
+    addIndex(BSON("b.c.d" << 1 << "a" << 1));
+    addIndex(BSON("e" << 1 << "a" << 1));
+
+    runQuery(fromjson(
+        "{$and: [{a: 5}, {$or: [{b: {$elemMatch: {c: {$elemMatch: {d: 6}}}}}, {e: 7}]}]}"));
+    assertNumSolutions(2);
+    assertSolutionExists(
+        "{fetch: {filter: null, node: {or: {nodes: ["
+        "{fetch: {filter: {b: {$elemMatch: {c: {$elemMatch: {d: 6}}}}}, node: {ixscan: {pattern: "
+        "{'b.c.d': 1, a: 1}, bounds: {'b.c.d': [[6, 6, true, true]], a: [[5, 5, true, true]]}}}}},"
+        "{ixscan: {pattern: {e: 1, a: 1}, bounds: {e: [[7, 7, true, true]], a: [[5, 5, true, "
+        "true]]}}}"
+        "]}}}}");
+    assertSolutionExists("{cscan: {dir: 1}}}}");
+}
+
 }  // namespace

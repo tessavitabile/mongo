@@ -52,6 +52,7 @@ std::unique_ptr<MatchExpression> WhereNoOpMatchExpression::shallowClone() const 
     if (getTag()) {
         e->setTag(getTag()->clone());
     }
+    e->setMoveNodeTags(getMoveNodeTags());
     return std::move(e);
 }
 }

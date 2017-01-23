@@ -81,6 +81,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         return std::move(e);
     }
 
@@ -121,6 +122,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         return std::move(e);
     }
 
@@ -157,6 +159,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         return std::move(e);
     }
 

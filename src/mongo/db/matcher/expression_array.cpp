@@ -124,6 +124,10 @@ void ElemMatchObjectMatchExpression::debugString(StringBuilder& debug, int level
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
     _sub->debugString(debug, level + 1);
 }
@@ -192,6 +196,10 @@ void ElemMatchValueMatchExpression::debugString(StringBuilder& debug, int level)
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
     for (unsigned i = 0; i < _subs.size(); i++) {
         _subs[i]->debugString(debug, level + 1);
@@ -232,6 +240,10 @@ void SizeMatchExpression::debugString(StringBuilder& debug, int level) const {
     if (NULL != td) {
         debug << " ";
         td->debugString(&debug);
+    }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
     }
 }
 

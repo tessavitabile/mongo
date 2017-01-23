@@ -370,6 +370,10 @@ void GeoMatchExpression::debugString(StringBuilder& debug, int level) const {
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
 }
 
@@ -397,6 +401,7 @@ std::unique_ptr<MatchExpression> GeoMatchExpression::shallowClone() const {
     if (getTag()) {
         next->setTag(getTag()->clone());
     }
+    next->setMoveNodeTags(getMoveNodeTags());
     return std::move(next);
 }
 
@@ -427,6 +432,10 @@ void GeoNearMatchExpression::debugString(StringBuilder& debug, int level) const 
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
 }
 
@@ -453,6 +462,7 @@ std::unique_ptr<MatchExpression> GeoNearMatchExpression::shallowClone() const {
     if (getTag()) {
         next->setTag(getTag()->clone());
     }
+    next->setMoveNodeTags(getMoveNodeTags());
     return std::move(next);
 }
 }

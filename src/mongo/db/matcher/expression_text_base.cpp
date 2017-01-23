@@ -51,6 +51,10 @@ void TextMatchExpressionBase::debugString(StringBuilder& debug, int level) const
     } else {
         debug << "NULL";
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
 }
 

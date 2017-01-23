@@ -147,4 +147,9 @@ void tagForSort(MatchExpression* tree);
  */
 void sortUsingTags(MatchExpression* tree);
 
+/**
+ * Finds all the nodes in the tree with MoveNodeTags and copies them to the paths specified in the MoveNodeTags, tagging them with the TagData in the MoveNodeTags. Removes the node from its current location if possible.
+ */
+void resolveMoveNodeTags(MatchExpression* tree);
+
 }  // namespace mongo

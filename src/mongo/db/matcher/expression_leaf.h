@@ -152,6 +152,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         e->setCollator(_collator);
         return std::move(e);
     }
@@ -166,6 +167,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         e->setCollator(_collator);
         return std::move(e);
     }
@@ -180,6 +182,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         e->setCollator(_collator);
         return std::move(e);
     }
@@ -194,6 +197,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         e->setCollator(_collator);
         return std::move(e);
     }
@@ -208,6 +212,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         e->setCollator(_collator);
         return std::move(e);
     }
@@ -238,6 +243,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         return std::move(e);
     }
 
@@ -276,6 +282,7 @@ public:
         if (getTag()) {
             m->setTag(getTag()->clone());
         }
+        m->setMoveNodeTags(getMoveNodeTags());
         return std::move(m);
     }
 
@@ -311,6 +318,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         return std::move(e);
     }
 
@@ -430,6 +438,7 @@ public:
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
+        e->setMoveNodeTags(getMoveNodeTags());
         return std::move(e);
     }
 
@@ -517,6 +526,7 @@ protected:
         if (getTag()) {
             clone->setTag(getTag()->clone());
         }
+        clone->setMoveNodeTags(getMoveNodeTags());
     }
 
 private:

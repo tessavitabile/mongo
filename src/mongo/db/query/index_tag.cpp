@@ -28,12 +28,137 @@
 
 #include "mongo/db/query/index_tag.h"
 
+#include "mongo/db/matcher/expression_array.h"
+#include "mongo/db/matcher/expression_tree.h"
 #include "mongo/db/query/indexability.h"
 
 #include <algorithm>
 #include <limits>
 
 namespace mongo {
+
+namespace {
+
+// Attaches 'node' to 'target'. If 'target' is an AND, adds 'node' as a child of 'target'. Otherwise, creates an AND that is a child of 'targetParent' at position 'targetPosition', and adds 'target' and 'node' as its children. Tags 'node' with 'tagData'.
+void attachNode(MatchExpression* node,
+                MatchExpression* target,
+                OrMatchExpression* targetParent,
+                size_t targetPosition,
+                std::unique_ptr<MatchExpression::TagData> tagData) {
+    auto clone = node->shallowClone();
+    if (clone->matchType() == MatchExpression::NOT) {
+        IndexTag* indexTag = static_cast<IndexTag*>(tagData.get());
+        clone->setTag(new IndexTag(indexTag->index));
+        clone->getChild(0)->setTag(tagData.release());
+    } else {
+        clone->setTag(tagData.release());
+    }
+
+    if (MatchExpression::AND == target->matchType()) {
+        AndMatchExpression* andNode = static_cast<AndMatchExpression*>(target);
+        andNode->add(clone.release());
+    } else {
+        std::unique_ptr<AndMatchExpression> andNode = stdx::make_unique<AndMatchExpression>();
+        IndexTag* indexTag = static_cast<IndexTag*>(clone->getTag());
+        andNode->setTag(new IndexTag(indexTag->index));
+        andNode->add(target);
+        andNode->add(clone.release());
+        targetParent->getChildVector()->operator[](targetPosition) = andNode.release();
+    }
+}
+
+// Finds all tags in 'moveNodeTags' whose path starts with 'position', remove them from 'moveNodeTags', and add them to the output vector with the starting 'position' removed.
+std::vector<MatchExpression::MoveNodeTag> getChildMoveNodeTags(
+    std::vector<MatchExpression::MoveNodeTag>& moveNodeTags, size_t position) {
+    std::vector<MatchExpression::MoveNodeTag> childTags;
+    auto iter = moveNodeTags.begin();
+    while (iter != moveNodeTags.end()) {
+        invariant(!(*iter).path.empty());
+        if ((*iter).path[0] == position) {
+            MatchExpression::MoveNodeTag tag = std::move(*iter);
+            iter = moveNodeTags.erase(iter);
+            tag.path.erase(tag.path.begin());
+            childTags.push_back(std::move(tag));
+        } else {
+            ++iter;
+        }
+    }
+    return childTags;
+}
+
+// Finds the child of 'tree' that is an indexed OR, if one exists.
+MatchExpression* getIndexedOrChild(MatchExpression* tree) {
+    auto children = tree->getChildVector();
+    if (!children) {
+        return nullptr;
+    }
+    for (auto child : *children) {
+        if (MatchExpression::OR == child->matchType() && child->getTag() != nullptr) {
+            return child;
+        }
+    }
+    return nullptr;
+}
+
+// Moves 'node' along the paths in 'target' specified in 'moveNodeTags'. Each value in path is the index of a child in an indexed OR. Returns true if 'node' is moved to every indexed descendant of 'target'.
+bool moveNode(MatchExpression* node,
+              MatchExpression* target,
+              std::vector<MatchExpression::MoveNodeTag> moveNodeTags) {
+    if (MatchExpression::OR == target->matchType()) {
+        OrMatchExpression* orNode = static_cast<OrMatchExpression*>(target);
+        bool moveToAllChildren = true;
+        for (size_t i = 0; i < orNode->numChildren(); ++i) {
+
+            // Find all tags in 'moveNodeTags' whose path starts with 'i', remove them from 'moveNodeTags', and add them to 'childTags' with the starting 'i' removed.
+            auto childTags = getChildMoveNodeTags(moveNodeTags, i);
+            if (childTags.empty()) {
+
+                // This child was not specified by any path in moveNodeTags.
+                moveToAllChildren = false;
+            } else if (childTags.size() == 1 && childTags[0].path.empty()) {
+
+                // We have reached the empty path {}. Attach the node to this child.
+                attachNode(node, orNode->getChild(i), orNode, i, std::move(childTags[0].tagData));
+            } else if (orNode->getChild(i)->matchType() == MatchExpression::NOT &&
+                       childTags.size() == 1 && childTags[0].path.size() == 1 &&
+                       childTags[0].path[0] == 0) {
+
+                // We have reached the path {0} and the child is a NOT. Attach the node to this child.
+                attachNode(node, orNode->getChild(i), orNode, i, std::move(childTags[0].tagData));
+            } else {
+
+                // childTags contains non-trivial paths, so we recur.
+                moveToAllChildren =
+                    moveToAllChildren && moveNode(node, orNode->getChild(i), std::move(childTags));
+            }
+        }
+        invariant(moveNodeTags.empty());
+        return moveToAllChildren;
+    }
+
+    if (MatchExpression::AND == target->matchType()) {
+        auto indexedOr = getIndexedOrChild(target);
+        invariant(indexedOr);
+        return moveNode(node, indexedOr, std::move(moveNodeTags));
+    }
+
+    invariant(0);
+    return false;
+}
+
+// Populates 'out' with all descendants of 'node' that have MoveNodeTags, assuming the initial input is an ELEM_MATCH_OBJECT.
+void getElemMatchMoveNodeDescendants(MatchExpression* node, std::vector<MatchExpression*>& out) {
+    if (!node->getMoveNodeTags().empty()) {
+        out.push_back(node);
+    } else if (node->matchType() == MatchExpression::ELEM_MATCH_OBJECT ||
+               node->matchType() == MatchExpression::AND) {
+        for (size_t i = 0; i < node->numChildren(); ++i) {
+            getElemMatchMoveNodeDescendants(node->getChild(i), out);
+        }
+    }
+}
+
+}  // namespace
 
 // TODO: Move out of the enumerator and into the planner.
 
@@ -107,6 +232,53 @@ void sortUsingTags(MatchExpression* tree) {
     std::vector<MatchExpression*>* children = tree->getChildVector();
     if (NULL != children) {
         std::sort(children->begin(), children->end(), TagComparison);
+    }
+}
+
+void resolveMoveNodeTags(MatchExpression* tree) {
+    if (MatchExpression::AND != tree->matchType() && MatchExpression::OR != tree->matchType()) {
+        return;
+    }
+    if (MatchExpression::AND == tree->matchType()) {
+        AndMatchExpression* andNode = static_cast<AndMatchExpression*>(tree);
+        MatchExpression* indexedOr = getIndexedOrChild(andNode);
+
+        // Iterate through the children backward, since we may remove some.
+        for (int64_t i = andNode->numChildren() - 1; i >= 0; --i) {
+            auto child = andNode->getChild(i);
+            if (!child->getMoveNodeTags().empty()) {
+                auto moveNodeTags = child->releaseMoveNodeTags();
+                if (moveNode(child, indexedOr, std::move(moveNodeTags))) {
+
+                    // indexedOr can completely satisfy the predicate specified in child, so we can remove it.
+                    auto ownedChild = andNode->removeChild(i);
+                }
+            } else if (child->matchType() == MatchExpression::NOT &&
+                       !child->getChild(0)->getMoveNodeTags().empty()) {
+                auto moveNodeTags = child->getChild(0)->releaseMoveNodeTags();
+
+                // Move the NOT and its child.
+                if (moveNode(child, indexedOr, std::move(moveNodeTags))) {
+
+                    // indexedOr can completely satisfy the predicate specified in child, so we can remove it.
+                    auto ownedChild = andNode->removeChild(i);
+                }
+            } else if (child->matchType() == MatchExpression::ELEM_MATCH_OBJECT) {
+
+                // Move all descendants of child with MoveNodeTags.
+                std::vector<MatchExpression*> moveNodeDescendants;
+                getElemMatchMoveNodeDescendants(child, moveNodeDescendants);
+                for (auto descendant : moveNodeDescendants) {
+                    auto moveNodeTags = descendant->releaseMoveNodeTags();
+                    moveNode(descendant, indexedOr, std::move(moveNodeTags));
+
+                    // We cannot remove descendants of an $elemMatch object, since the filter must be applied in its entirety.
+                }
+            }
+        }
+    }
+    for (size_t i = 0; i < tree->numChildren(); ++i) {
+        resolveMoveNodeTags(tree->getChild(i));
     }
 }
 

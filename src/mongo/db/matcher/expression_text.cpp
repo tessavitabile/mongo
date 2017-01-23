@@ -107,6 +107,7 @@ std::unique_ptr<MatchExpression> TextMatchExpression::shallowClone() const {
     if (getTag()) {
         expr->setTag(getTag()->clone());
     }
+    expr->setMoveNodeTags(getMoveNodeTags());
     return std::move(expr);
 }
 

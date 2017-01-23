@@ -197,6 +197,10 @@ void ComparisonMatchExpression::debugString(StringBuilder& debug, int level) con
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
 
     debug << "\n";
 }
@@ -315,6 +319,10 @@ void RegexMatchExpression::debugString(StringBuilder& debug, int level) const {
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
 }
 
@@ -350,6 +358,10 @@ void ModMatchExpression::debugString(StringBuilder& debug, int level) const {
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
 }
 
@@ -384,6 +396,10 @@ void ExistsMatchExpression::debugString(StringBuilder& debug, int level) const {
     if (NULL != td) {
         debug << " ";
         td->debugString(&debug);
+    }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
     }
     debug << "\n";
 }
@@ -499,6 +515,10 @@ void TypeMatchExpression::debugString(StringBuilder& debug, int level) const {
         debug << " ";
         td->debugString(&debug);
     }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
+    }
     debug << "\n";
 }
 
@@ -541,6 +561,8 @@ std::unique_ptr<MatchExpression> InMatchExpression::shallowClone() const {
     if (getTag()) {
         next->setTag(getTag()->clone());
     }
+    next->setMoveNodeTags(getMoveNodeTags());
+
     next->_hasNull = _hasNull;
     next->_hasEmptyArray = _hasEmptyArray;
     next->_equalitySet = _equalitySet;
@@ -584,6 +606,10 @@ void InMatchExpression::debugString(StringBuilder& debug, int level) const {
     if (NULL != td) {
         debug << " ";
         td->debugString(&debug);
+    }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
     }
     debug << "\n";
 }
@@ -869,6 +895,10 @@ void BitTestMatchExpression::debugString(StringBuilder& debug, int level) const 
     if (td) {
         debug << " ";
         td->debugString(&debug);
+    }
+    for (const auto& moveNodeTag : getMoveNodeTags()) {
+        debug << " ";
+        moveNodeTag.debugString(&debug);
     }
 }
 

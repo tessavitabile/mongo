@@ -420,6 +420,9 @@ Status QueryPlanner::planFromCache(const CanonicalQuery& query,
         return s;
     }
 
+    // Move/copy any nodes with MoveNodeTags to their specified new locations.
+    resolveMoveNodeTags(clone.get());
+
     // The planner requires a defined sort order.
     sortUsingTags(clone.get());
 
@@ -794,6 +797,9 @@ Status QueryPlanner::plan(const CanonicalQuery& query,
                 LOG(5) << "Query is not cachable: " << redact(indexTreeStatus.reason());
             }
             unique_ptr<PlanCacheIndexTree> autoData(cacheData);
+
+            // Move/copy any nodes with MoveNodeTags to their specified new locations.
+            resolveMoveNodeTags(rawTree);
 
             sortUsingTags(rawTree);
 
