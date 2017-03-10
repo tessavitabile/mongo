@@ -161,8 +161,10 @@
         // collections.
         assert.commandWorked(adminDB.runCommand({
             createRole: "readFooBar",
-            privileges: [{resource: {db: testDBName, collection: "foo"}, actions: ["find"]}],
-            privileges: [{resource: {db: testDBName, collection: "bar"}, actions: ["find"]}],
+            privileges: [
+                {resource: {db: testDBName, collection: "foo"}, actions: ["find"]},
+                {resource: {db: testDBName, collection: "bar"}, actions: ["find"]}
+            ],
             roles: []
         }));
         assert.commandWorked(
