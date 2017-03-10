@@ -453,7 +453,7 @@ public:
         PlanExecutor* exec = makeCollScanExec(coll, filterObj);
 
         // Make a client cursor from the plan executor.
-        coll->getCursorManager()->registerCursor({exec, nss.ns(), false, 0, BSONObj()});
+        coll->getCursorManager()->registerCursor({exec, nss.ns(), {}, false, 0, BSONObj()});
 
         // There should be one cursor before invalidation,
         // and zero cursors after invalidation.
@@ -479,8 +479,8 @@ public:
         PlanExecutor* exec = makeCollScanExec(collection, filterObj);
 
         // Make a client cursor from the plan executor.
-        auto ccPin =
-            collection->getCursorManager()->registerCursor({exec, nss.ns(), false, 0, BSONObj()});
+        auto ccPin = collection->getCursorManager()->registerCursor(
+            {exec, nss.ns(), {}, false, 0, BSONObj()});
 
         // If the cursor is pinned, it sticks around, even after invalidation.
         ASSERT_EQUALS(1U, numCursors());
@@ -522,7 +522,8 @@ public:
             PlanExecutor* exec = makeCollScanExec(collection, filterObj);
 
             // Make a client cursor from the plan executor.
-            collection->getCursorManager()->registerCursor({exec, nss.ns(), false, 0, BSONObj()});
+            collection->getCursorManager()->registerCursor(
+                {exec, nss.ns(), {}, false, 0, BSONObj()});
         }
 
         // There should be one cursor before timeout,
