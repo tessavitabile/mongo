@@ -331,6 +331,7 @@ public:
             auto pinnedCursor = CursorManager::getGlobalCursorManager()->registerCursor(
                 {exec.release(),
                  cursorNss.ns(),
+                 AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames(),
                  opCtx->recoveryUnit()->isReadingFromMajorityCommittedSnapshot()});
             cursorId = pinnedCursor.getCursor()->cursorid();
         }

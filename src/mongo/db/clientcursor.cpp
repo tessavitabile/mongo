@@ -77,11 +77,12 @@ long long ClientCursor::totalOpen() {
     return cursorStatsOpen.get();
 }
 
-ClientCursor::ClientCursor(const ClientCursorParams& params,
+ClientCursor::ClientCursor(ClientCursorParams&& params,
                            CursorManager* cursorManager,
                            CursorId cursorId)
     : _cursorid(cursorId),
-      _ns(params.ns),
+      _ns(std::move(params.ns)),
+      _authenticatedUsers(std::move(params.authenticatedUsers)),
       _isReadCommitted(params.isReadCommitted),
       _cursorManager(cursorManager),
       _query(params.query),

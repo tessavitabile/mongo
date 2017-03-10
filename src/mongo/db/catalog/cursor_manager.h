@@ -124,7 +124,7 @@ public:
      * Constructs a new ClientCursor according to the given 'cursorParams'. The cursor is atomically
      * registered with the manager and returned in pinned state.
      */
-    ClientCursorPin registerCursor(const ClientCursorParams& cursorParams);
+    ClientCursorPin registerCursor(ClientCursorParams&& cursorParams);
 
     /**
      * Constructs and pins a special ClientCursor used to track sharding state for the given

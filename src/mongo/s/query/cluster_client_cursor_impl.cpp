@@ -99,6 +99,10 @@ bool ClusterClientCursorImpl::isTailable() const {
     return _params.isTailable;
 }
 
+const std::vector<UserName>& ClusterClientCursorImpl::getAuthenticatedUsers() const {
+    return _params.authenticatedUsers;
+}
+
 boost::optional<BSONObj> ClusterClientCursorImpl::viewDefinition() const {
     return _params.viewDefinition;
 }

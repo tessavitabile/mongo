@@ -101,6 +101,8 @@ public:
 
     bool isTailable() const final;
 
+    const std::vector<UserName>& getAuthenticatedUsers() const final;
+
     boost::optional<BSONObj> viewDefinition() const final;
 
     long long getNumReturnedSoFar() const final;

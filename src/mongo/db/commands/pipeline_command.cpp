@@ -512,6 +512,7 @@ public:
                 pin.emplace(collection->getCursorManager()->registerCursor(
                     {exec.release(),
                      nss.ns(),
+                     AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames(),
                      opCtx->recoveryUnit()->isReadingFromMajorityCommittedSnapshot(),
                      0,
                      cmdObj.getOwned(),

@@ -33,6 +33,7 @@
 #include "mongo/db/query/find.h"
 
 #include "mongo/client/dbclientinterface.h"
+#include "mongo/db/auth/authorization_session.h"
 #include "mongo/db/catalog/collection.h"
 #include "mongo/db/catalog/database_holder.h"
 #include "mongo/db/client.h"
@@ -325,6 +326,29 @@ Message getMore(OperationContext* opCtx,
                               << " belongs to namespace "
                               << cc->ns(),
                 ns == cc->ns());
+
+        // A user can only call getMore on their own cursor. If there were multiple users
+        // authenticated when the cursor was created, then at least one of them must be
+        // authenticated in order to run getMore on the cursor.
+        if (!cc->getAuthenticatedUsers().empty()) {
+            bool sameUser = false;
+            for (UserNameIterator nameIter =
+                     AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNamesIter();
+                 nameIter.more();
+                 nameIter.next()) {
+                if (std::find(cc->getAuthenticatedUsers().begin(),
+                              cc->getAuthenticatedUsers().end(),
+                              *nameIter) != cc->getAuthenticatedUsers().end()) {
+                    sameUser = true;
+                    break;
+                }
+            }
+            uassert(ErrorCodes::Unauthorized,
+                    str::stream() << "cursor id " << cursorid
+                                  << " was not created by the authenticated user",
+                    sameUser);
+        }
+
         *isCursorAuthorized = true;
 
         if (cc->isReadCommitted())
@@ -674,6 +698,7 @@ std::string runQuery(OperationContext* opCtx,
         ClientCursorPin pinnedCursor = collection->getCursorManager()->registerCursor(
             {exec.release(),
              nss.ns(),
+             AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames(),
              opCtx->recoveryUnit()->isReadingFromMajorityCommittedSnapshot(),
              qr.getOptions(),
              upconvertQueryEntry(q.query, qr.nss(), q.ntoreturn, q.ntoskip)});

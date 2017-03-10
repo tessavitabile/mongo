@@ -152,6 +152,7 @@ public:
                 auto pinnedCursor = collection->getCursorManager()->registerCursor(
                     {exec.release(),
                      ns.ns(),
+                     AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames(),
                      opCtx->recoveryUnit()->isReadingFromMajorityCommittedSnapshot()});
                 pinnedCursor.getCursor()->setLeftoverMaxTimeMicros(
                     opCtx->getRemainingMaxTimeMicros());

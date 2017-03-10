@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include "mongo/db/auth/user_name.h"
 #include "mongo/db/cursor_id.h"
 #include "mongo/db/jsobj.h"
 #include "mongo/db/query/plan_executor.h"
@@ -49,12 +50,14 @@ class RecoveryUnit;
 struct ClientCursorParams {
     ClientCursorParams(PlanExecutor* exec,
                        std::string ns,
+                       std::vector<UserName> authenticatedUsers,
                        bool isReadCommitted,
                        int qopts = 0,
                        const BSONObj query = BSONObj(),
                        bool isAggCursor = false)
         : exec(exec),
           ns(std::move(ns)),
+          authenticatedUsers(std::move(authenticatedUsers)),
           isReadCommitted(isReadCommitted),
           qopts(qopts),
           query(query),
@@ -62,6 +65,7 @@ struct ClientCursorParams {
 
     PlanExecutor* exec = nullptr;
     const std::string ns;
+    std::vector<UserName> authenticatedUsers;
     bool isReadCommitted = false;
     int qopts = 0;
     const BSONObj query = BSONObj();
@@ -94,6 +98,10 @@ public:
 
     std::string ns() const {
         return _ns;
+    }
+
+    const std::vector<UserName>& getAuthenticatedUsers() const {
+        return _authenticatedUsers;
     }
 
     bool isReadCommitted() const {
@@ -223,7 +231,7 @@ private:
      * Constructs a ClientCursor. Since cursors must come into being registered and pinned, this is
      * private. See cursor_manager.h for more details.
      */
-    ClientCursor(const ClientCursorParams& params, CursorManager* cursorManager, CursorId cursorId);
+    ClientCursor(ClientCursorParams&& params, CursorManager* cursorManager, CursorId cursorId);
 
     /**
      * Constructs a special ClientCursor used to track sharding state for the given collection.
@@ -251,6 +259,9 @@ private:
 
     // The namespace we're operating on.
     std::string _ns;
+
+    // The set of authenticated users when this cursor was created.
+    std::vector<UserName> _authenticatedUsers;
 
     const bool _isReadCommitted = false;
 

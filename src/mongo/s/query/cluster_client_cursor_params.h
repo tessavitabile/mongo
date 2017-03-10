@@ -34,6 +34,7 @@
 
 #include "mongo/bson/bsonobj.h"
 #include "mongo/client/read_preference.h"
+#include "mongo/db/auth/user_name.h"
 #include "mongo/db/cursor_id.h"
 #include "mongo/db/namespace_string.h"
 #include "mongo/s/client/shard.h"
@@ -105,6 +106,9 @@ struct ClusterClientCursorParams {
 
     // Namespace against which to query.
     NamespaceString nsString;
+
+    // The set of authenticated users when this cursor was created.
+    std::vector<UserName> authenticatedUsers;
 
     // Per-remote node data.
     std::vector<Remote> remotes;

@@ -32,6 +32,7 @@
 
 #include "mongo/base/status_with.h"
 #include "mongo/bson/bsonobj.h"
+#include "mongo/db/auth/authorization_session.h"
 #include "mongo/db/query/cursor_response.h"
 #include "mongo/s/query/cluster_client_cursor_impl.h"
 #include "mongo/s/query/cluster_client_cursor_params.h"
@@ -59,6 +60,8 @@ StatusWith<BSONObj> storePossibleCursor(OperationContext* opCtx,
     }
 
     ClusterClientCursorParams params(incomingCursorResponse.getValue().getNSS());
+    params.authenticatedUsers =
+        AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames();
     params.remotes.emplace_back(server, incomingCursorResponse.getValue().getCursorId());
 
 

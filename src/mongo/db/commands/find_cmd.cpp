@@ -395,6 +395,7 @@ public:
             ClientCursorPin pinnedCursor = collection->getCursorManager()->registerCursor(
                 {exec.release(),
                  nss.ns(),
+                 AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames(),
                  opCtx->recoveryUnit()->isReadingFromMajorityCommittedSnapshot(),
                  originalQR.getOptions(),
                  cmdObj.getOwned()});

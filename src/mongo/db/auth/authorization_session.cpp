@@ -135,8 +135,17 @@ void AuthorizationSession::logoutDatabase(const std::string& dbname) {
     _buildAuthenticatedRolesVector();
 }
 
-UserNameIterator AuthorizationSession::getAuthenticatedUserNames() {
+UserNameIterator AuthorizationSession::getAuthenticatedUserNamesIter() {
     return _authenticatedUsers.getNames();
+}
+
+std::vector<UserName> AuthorizationSession::getAuthenticatedUserNames() {
+    std::vector<UserName> userNames;
+    for (UserNameIterator nameIter = getAuthenticatedUserNamesIter(); nameIter.more();
+         nameIter.next()) {
+        userNames.emplace_back(*nameIter);
+    }
+    return userNames;
 }
 
 RoleNameIterator AuthorizationSession::getAuthenticatedRoleNames() {
@@ -145,7 +154,7 @@ RoleNameIterator AuthorizationSession::getAuthenticatedRoleNames() {
 
 std::string AuthorizationSession::getAuthenticatedUserNamesToken() {
     std::string ret;
-    for (UserNameIterator nameIter = getAuthenticatedUserNames(); nameIter.more();
+    for (UserNameIterator nameIter = getAuthenticatedUserNamesIter(); nameIter.more();
          nameIter.next()) {
         ret += '\0';  // Using a NUL byte which isn't valid in usernames to separate them.
         ret += nameIter->getFullName();
@@ -836,7 +845,7 @@ bool AuthorizationSession::isCoauthorizedWithClient(Client* opClient) {
         if (authSession->isImpersonating()) {
             return authSession->getImpersonatedUserNames();
         } else {
-            return authSession->getAuthenticatedUserNames();
+            return authSession->getAuthenticatedUserNamesIter();
         }
     };
 

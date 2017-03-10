@@ -120,7 +120,10 @@ public:
     User* lookupUser(const UserName& name);
 
     // Gets an iterator over the names of all authenticated users stored in this manager.
-    UserNameIterator getAuthenticatedUserNames();
+    UserNameIterator getAuthenticatedUserNamesIter();
+
+    // Gets a vector of the names of all authenticated users stored in this manager.
+    std::vector<UserName> getAuthenticatedUserNames();
 
     // Gets an iterator over the roles of all authenticated users stored in this manager.
     RoleNameIterator getAuthenticatedRoleNames();

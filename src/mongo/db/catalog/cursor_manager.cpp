@@ -512,11 +512,11 @@ CursorId CursorManager::_allocateCursorId_inlock() {
     fassertFailed(17360);
 }
 
-ClientCursorPin CursorManager::registerCursor(const ClientCursorParams& cursorParams) {
+ClientCursorPin CursorManager::registerCursor(ClientCursorParams&& cursorParams) {
     stdx::lock_guard<SimpleMutex> lk(_mutex);
     CursorId cursorId = _allocateCursorId_inlock();
     std::unique_ptr<ClientCursor, ClientCursor::Deleter> clientCursor(
-        new ClientCursor(cursorParams, this, cursorId));
+        new ClientCursor(std::move(cursorParams), this, cursorId));
     return _registerCursor_inlock(std::move(clientCursor));
 }
 

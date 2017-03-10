@@ -254,6 +254,31 @@ public:
             ctx = stdx::make_unique<AutoGetCollectionForRead>(opCtx, request.nss);
         }
 
+        // A user can only call getMore on their own cursor. If there were multiple users
+        // authenticated when the cursor was created, then at least one of them must be
+        // authenticated in order to run getMore on the cursor.
+        if (!cursor->getAuthenticatedUsers().empty()) {
+            bool sameUser = false;
+            for (UserNameIterator nameIter =
+                     AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNamesIter();
+                 nameIter.more();
+                 nameIter.next()) {
+                if (std::find(cursor->getAuthenticatedUsers().begin(),
+                              cursor->getAuthenticatedUsers().end(),
+                              *nameIter) != cursor->getAuthenticatedUsers().end()) {
+                    sameUser = true;
+                    break;
+                }
+            }
+            if (!sameUser) {
+                return appendCommandStatus(
+                    result,
+                    Status(ErrorCodes::Unauthorized,
+                           str::stream() << "cursor id " << request.cursorid
+                                         << " was not created by the authenticated user"));
+            }
+        }
+
         if (request.nss.ns() != cursor->ns()) {
             return appendCommandStatus(
                 result,
