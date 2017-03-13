@@ -166,7 +166,7 @@ public:
          * Returns the set of authenticated users when this cursor was created. Cannot be called
          * after returnCursor() is called.  A cursor must be owned.
          */
-        const std::vector<UserName>& getAuthenticatedUsers() const;
+        UserNameIterator getAuthenticatedUsers() const;
 
         /**
          * Transfers ownership of the underlying cursor back to the manager.  A cursor must be

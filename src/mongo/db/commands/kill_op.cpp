@@ -116,7 +116,7 @@ public:
         }
 
         bool isAuthenticated =
-            AuthorizationSession::get(client)->getAuthenticatedUserNamesIter().more();
+            AuthorizationSession::get(client)->getAuthenticatedUserNames().more();
         if (isAuthenticated) {
             long long opId = parseOpId(cmdObj);
             auto swLkAndOp = _findOp(client, opId);

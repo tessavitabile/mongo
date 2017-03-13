@@ -55,7 +55,7 @@ using std::string;
 namespace {
 
 void _appendUserInfo(const CurOp& c, BSONObjBuilder& builder, AuthorizationSession* authSession) {
-    UserNameIterator nameIter = authSession->getAuthenticatedUserNamesIter();
+    UserNameIterator nameIter = authSession->getAuthenticatedUserNames();
 
     UserName bestUser;
     if (nameIter.more())

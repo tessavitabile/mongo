@@ -50,7 +50,7 @@ class RecoveryUnit;
 struct ClientCursorParams {
     ClientCursorParams(PlanExecutor* exec,
                        std::string ns,
-                       std::vector<UserName> authenticatedUsers,
+                       UserNameIterator authenticatedUsersIter,
                        bool isReadCommitted,
                        int qopts = 0,
                        const BSONObj query = BSONObj(),
@@ -61,7 +61,11 @@ struct ClientCursorParams {
           isReadCommitted(isReadCommitted),
           qopts(qopts),
           query(query),
-          isAggCursor(isAggCursor) {}
+          isAggCursor(isAggCursor) {
+        while (authenticatedUsersIter.more()) {
+            authenticatedUsers.emplace_back(authenticatedUsersIter.next());
+        }
+    }
 
     PlanExecutor* exec = nullptr;
     const std::string ns;
@@ -100,8 +104,8 @@ public:
         return _ns;
     }
 
-    const std::vector<UserName>& getAuthenticatedUsers() const {
-        return _authenticatedUsers;
+    UserNameIterator getAuthenticatedUsers() const {
+        return makeUserNameIterator(_authenticatedUsers.begin(), _authenticatedUsers.end());
     }
 
     bool isReadCommitted() const {

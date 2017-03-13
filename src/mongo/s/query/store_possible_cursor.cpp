@@ -59,9 +59,9 @@ StatusWith<BSONObj> storePossibleCursor(OperationContext* opCtx,
         return cmdResult;
     }
 
-    ClusterClientCursorParams params(incomingCursorResponse.getValue().getNSS());
-    params.authenticatedUsers =
-        AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames();
+    ClusterClientCursorParams params(
+        incomingCursorResponse.getValue().getNSS(),
+        AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNames());
     params.remotes.emplace_back(server, incomingCursorResponse.getValue().getCursorId());
 
 

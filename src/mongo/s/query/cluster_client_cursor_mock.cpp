@@ -81,8 +81,8 @@ namespace {
 const std::vector<UserName> emptyAuthenticatedUsers{};
 }  // namespace
 
-const std::vector<UserName>& ClusterClientCursorMock::getAuthenticatedUsers() const {
-    return emptyAuthenticatedUsers;
+UserNameIterator ClusterClientCursorMock::getAuthenticatedUsers() const {
+    return makeUserNameIterator(emptyAuthenticatedUsers.begin(), emptyAuthenticatedUsers.end());
 }
 
 boost::optional<BSONObj> ClusterClientCursorMock::viewDefinition() const {

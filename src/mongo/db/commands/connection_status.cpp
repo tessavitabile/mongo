@@ -73,7 +73,7 @@ public:
         BSONObjBuilder authInfo(result.subobjStart("authInfo"));
         {
             BSONArrayBuilder authenticatedUsers(authInfo.subarrayStart("authenticatedUsers"));
-            UserNameIterator nameIter = authSession->getAuthenticatedUserNamesIter();
+            UserNameIterator nameIter = authSession->getAuthenticatedUserNames();
 
             for (; nameIter.more(); nameIter.next()) {
                 BSONObjBuilder userInfoBuilder(authenticatedUsers.subobjStart());
@@ -100,7 +100,7 @@ public:
             // Create a unified map of resources to privileges, to avoid duplicate
             // entries in the connection status output.
             User::ResourcePrivilegeMap unifiedResourcePrivilegeMap;
-            UserNameIterator nameIter = authSession->getAuthenticatedUserNamesIter();
+            UserNameIterator nameIter = authSession->getAuthenticatedUserNames();
 
             for (; nameIter.more(); nameIter.next()) {
                 User* authUser = authSession->lookupUser(*nameIter);

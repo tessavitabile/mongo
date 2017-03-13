@@ -330,24 +330,11 @@ Message getMore(OperationContext* opCtx,
         // A user can only call getMore on their own cursor. If there were multiple users
         // authenticated when the cursor was created, then at least one of them must be
         // authenticated in order to run getMore on the cursor.
-        if (!cc->getAuthenticatedUsers().empty()) {
-            bool sameUser = false;
-            for (UserNameIterator nameIter =
-                     AuthorizationSession::get(opCtx->getClient())->getAuthenticatedUserNamesIter();
-                 nameIter.more();
-                 nameIter.next()) {
-                if (std::find(cc->getAuthenticatedUsers().begin(),
-                              cc->getAuthenticatedUsers().end(),
-                              *nameIter) != cc->getAuthenticatedUsers().end()) {
-                    sameUser = true;
-                    break;
-                }
-            }
-            uassert(ErrorCodes::Unauthorized,
-                    str::stream() << "cursor id " << cursorid
-                                  << " was not created by the authenticated user",
-                    sameUser);
-        }
+        uassert(ErrorCodes::Unauthorized,
+                str::stream() << "cursor id " << cursorid
+                              << " was not created by the authenticated user",
+                AuthorizationSession::get(opCtx->getClient())
+                    ->isCoauthorizedWith(cc->getAuthenticatedUsers()));
 
         *isCursorAuthorized = true;
 

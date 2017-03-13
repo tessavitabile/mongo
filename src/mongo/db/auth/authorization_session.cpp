@@ -135,17 +135,8 @@ void AuthorizationSession::logoutDatabase(const std::string& dbname) {
     _buildAuthenticatedRolesVector();
 }
 
-UserNameIterator AuthorizationSession::getAuthenticatedUserNamesIter() {
+UserNameIterator AuthorizationSession::getAuthenticatedUserNames() {
     return _authenticatedUsers.getNames();
-}
-
-std::vector<UserName> AuthorizationSession::getAuthenticatedUserNames() {
-    std::vector<UserName> userNames;
-    for (UserNameIterator nameIter = getAuthenticatedUserNamesIter(); nameIter.more();
-         nameIter.next()) {
-        userNames.emplace_back(*nameIter);
-    }
-    return userNames;
 }
 
 RoleNameIterator AuthorizationSession::getAuthenticatedRoleNames() {
@@ -154,7 +145,7 @@ RoleNameIterator AuthorizationSession::getAuthenticatedRoleNames() {
 
 std::string AuthorizationSession::getAuthenticatedUserNamesToken() {
     std::string ret;
-    for (UserNameIterator nameIter = getAuthenticatedUserNamesIter(); nameIter.more();
+    for (UserNameIterator nameIter = getAuthenticatedUserNames(); nameIter.more();
          nameIter.next()) {
         ret += '\0';  // Using a NUL byte which isn't valid in usernames to separate them.
         ret += nameIter->getFullName();
@@ -845,7 +836,7 @@ bool AuthorizationSession::isCoauthorizedWithClient(Client* opClient) {
         if (authSession->isImpersonating()) {
             return authSession->getImpersonatedUserNames();
         } else {
-            return authSession->getAuthenticatedUserNamesIter();
+            return authSession->getAuthenticatedUserNames();
         }
     };
 
@@ -859,6 +850,24 @@ bool AuthorizationSession::isCoauthorizedWithClient(Client* opClient) {
             opIt.next();
         }
         it.next();
+    }
+
+    return false;
+}
+
+bool AuthorizationSession::isCoauthorizedWith(UserNameIterator userNameIter) {
+    if (!userNameIter.more()) {
+        return true;
+    }
+
+    while (userNameIter.more()) {
+        for (UserNameIterator thisUserNameIter = getAuthenticatedUserNames();
+             thisUserNameIter.more();
+             thisUserNameIter.next()) {
+            if (userNameIter.next() == *thisUserNameIter) {
+                return true;
+            }
+        }
     }
 
     return false;

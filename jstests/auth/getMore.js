@@ -13,6 +13,11 @@
             adminDB.runCommand({createUser: "admin", pwd: "admin", roles: ["root"]}));
         assert.eq(1, adminDB.auth("admin", "admin"));
 
+        let ismmap = false;
+        if (!isMongos) {
+            ismmap = assert.commandWorked(adminDB.serverStatus()).storageEngine.name == "mmapv1";
+        }
+
         // Set up the test database.
         const testDBName = "auth_getMore";
         let testDB = adminDB.getSiblingDB(testDBName);
@@ -106,7 +111,7 @@
         }
 
         // Test that "Mallory" cannot use a repairCursor cursor created by "Alice".
-        if (!isMongos && db.serverStatus().storageEngine.name == "mmapv1") {
+        if (!isMongos && ismmap) {
             assert.eq(1, testDB.auth("Alice", "pwd"));
             res = assert.commandWorked(testDB.runCommand({repairCursor: "foo", batchSize: 0}));
             cursorId = res.cursor.id;

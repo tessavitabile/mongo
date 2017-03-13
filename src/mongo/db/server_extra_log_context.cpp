@@ -57,7 +57,7 @@ void appendServerExtraLogContext(BufBuilder& builder) {
     if (!AuthorizationSession::exists(client))
         return;
 
-    UserNameIterator users = AuthorizationSession::get(client)->getAuthenticatedUserNamesIter();
+    UserNameIterator users = AuthorizationSession::get(client)->getAuthenticatedUserNames();
 
     if (!users.more())
         return;

@@ -83,7 +83,7 @@ public:
     /**
      * Returns the set of authenticated users when this cursor was created.
      */
-    virtual const std::vector<UserName>& getAuthenticatedUsers() const = 0;
+    virtual UserNameIterator getAuthenticatedUsers() const = 0;
 
     /**
      * Returns the view definition associated with this cursor, if any.

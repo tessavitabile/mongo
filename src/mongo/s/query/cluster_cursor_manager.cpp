@@ -120,7 +120,7 @@ bool ClusterCursorManager::PinnedCursor::isTailable() const {
     return _cursor->isTailable();
 }
 
-const std::vector<UserName>& ClusterCursorManager::PinnedCursor::getAuthenticatedUsers() const {
+UserNameIterator ClusterCursorManager::PinnedCursor::getAuthenticatedUsers() const {
     invariant(_cursor);
     return _cursor->getAuthenticatedUsers();
 }

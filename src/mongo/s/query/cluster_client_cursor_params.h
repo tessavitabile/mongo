@@ -95,14 +95,25 @@ struct ClusterClientCursorParams {
      * Constructor used for cases where initial shard host targeting is necessary (i.e., we don't
      * know yet the remote cursor id).
      */
-    ClusterClientCursorParams(NamespaceString nss, ReadPreferenceSetting readPref)
-        : nsString(std::move(nss)), readPreference(std::move(readPref)) {}
+    ClusterClientCursorParams(NamespaceString nss,
+                              UserNameIterator authenticatedUsersIter,
+                              ReadPreferenceSetting readPref)
+        : nsString(std::move(nss)), readPreference(std::move(readPref)) {
+        while (authenticatedUsersIter.more()) {
+            authenticatedUsers.emplace_back(authenticatedUsersIter.next());
+        }
+    }
 
     /**
      * Constructor used for cases, where the remote cursor ids are already known and no resolution
      * or retargeting needs to happen.
      */
-    ClusterClientCursorParams(NamespaceString nss) : nsString(std::move(nss)) {}
+    ClusterClientCursorParams(NamespaceString nss, UserNameIterator authenticatedUsersIter)
+        : nsString(std::move(nss)) {
+        while (authenticatedUsersIter.more()) {
+            authenticatedUsers.emplace_back(authenticatedUsersIter.next());
+        }
+    }
 
     // Namespace against which to query.
     NamespaceString nsString;
