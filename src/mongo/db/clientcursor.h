@@ -57,7 +57,6 @@ struct ClientCursorParams {
                        bool isAggCursor = false)
         : exec(exec),
           ns(std::move(ns)),
-          authenticatedUsers(std::move(authenticatedUsers)),
           isReadCommitted(isReadCommitted),
           qopts(qopts),
           query(query),
