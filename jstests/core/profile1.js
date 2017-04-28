@@ -91,8 +91,7 @@
         var u = {$inc: {x: 1}};
         db.profile1.update(q, u);
         var r = profileCursor({ns: db.profile1.getFullName()}).sort({$natural: -1})[0];
-        assert.eq(q, r.query, "Y1: " + tojson(r));
-        assert.eq(u, r.updateobj, "Y2");
+        assert.eq({q: q, u: u, multi: false, upsert: false}, r.query, "Y1: " + tojson(r));
         assert.eq("update", r.op, "Y3");
         assert.eq("profile1.profile1", r.ns, "Y4");
     } finally {

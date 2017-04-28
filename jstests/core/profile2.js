@@ -39,7 +39,9 @@ assert(result.hasOwnProperty('ns'));
 assert(result.hasOwnProperty('millis'));
 assert(result.hasOwnProperty('query'));
 assert.eq('string', typeof(result.query.$truncated));
-assert(result.query.$truncated.match(/^{ a: "a+\.\.\." }$/));  // String value is truncated.
+// String value is truncated.
+assert(result.query.$truncated.match(
+    /^{ q: { a: "a+\.\.\." }, u: {}, multi: false, upsert: false }$/));
 
 assert.commandWorked(coll.getDB().runCommand({profile: 0}));
 coll.getDB().system.profile.drop();
@@ -52,9 +54,11 @@ assert.eq(1, results.length);
 var result = results[0];
 assert(result.hasOwnProperty('ns'));
 assert(result.hasOwnProperty('millis'));
-assert(result.hasOwnProperty('updateobj'));
-assert.eq('string', typeof(result.updateobj.$truncated));
-assert(result.updateobj.$truncated.match(/^{ a: "a+\.\.\." }$/));  // String value is truncated.
+assert(result.hasOwnProperty('query'));
+assert.eq('string', typeof(result.query.$truncated));
+// String value is truncated.
+assert(result.query.$truncated.match(
+    /^{ q: {}, u: { a: "a+\.\.\." }, multi: false, upsert: false }$/));
 
 assert.commandWorked(coll.getDB().runCommand({profile: 0}));
 coll.getDB().system.profile.drop();
