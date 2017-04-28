@@ -82,7 +82,6 @@ public:
     // Similarly, the return value will be dbGetMore for both OP_GET_MORE and getMore command.
     LogicalOp logicalOp{LogicalOp::opInvalid};  // only set this through setNetworkOp_inlock()
     bool iscommand{false};
-    BSONObj updateobj{};
 
     // detailed options
     long long cursorid{-1};
@@ -174,14 +173,6 @@ public:
      */
     BSONObj query() const {
         return _query;
-    }
-
-    /**
-     * The BSONObj returned may not be owned by CurOp. Callers should call getOwned() if they plan
-     * to reference beyond the lifetime of this CurOp instance.
-     */
-    BSONObj collation() const {
-        return _collation;
     }
 
     /**
@@ -323,14 +314,6 @@ public:
     }
 
     /**
-     * 'collation' must be either an owned BSONObj or guaranteed to outlive the OperationContext it
-     * is associated with.
-     */
-    void setCollation_inlock(const BSONObj& collation) {
-        _collation = collation;
-    }
-
-    /**
      * Sets the original command object.
      */
     void setOriginatingCommand_inlock(const BSONObj& commandObj) {
@@ -447,7 +430,6 @@ private:
     int _dbprofile{0};  // 0=off, 1=slow, 2=all
     std::string _ns;
     BSONObj _query;
-    BSONObj _collation;
     BSONObj _originatingCommand;  // Used by getMore to display original command.
     OpDebug _debug;
     std::string _message;

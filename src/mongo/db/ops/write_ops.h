@@ -66,6 +66,10 @@ struct UpdateOp : ParsedWriteOp {
         std::vector<BSONObj> arrayFilters;
         bool multi = false;
         bool upsert = false;
+
+        // The unparsed update: {q: <query>, u: <update>, ...}. This will be empty for legacy
+        // updates.
+        BSONObj rawUpdate;
     };
 
     std::vector<SingleUpdate> updates;
@@ -79,6 +83,9 @@ struct DeleteOp : ParsedWriteOp {
         BSONObj query;
         BSONObj collation;
         bool multi = true;
+
+        // The unparsed delete: {q: <query>, ...}. This will be empty for legacy deletes.
+        BSONObj rawDelete;
     };
 
     std::vector<SingleDelete> deletes;

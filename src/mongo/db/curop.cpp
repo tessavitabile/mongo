@@ -386,10 +386,6 @@ void CurOp::reportState(BSONObjBuilder* builder) {
             (_isCommand ? TruncationMode::kIncludeComment : TruncationMode::kNoComment));
     }
 
-    if (!_collation.isEmpty()) {
-        appendAsObjOrString("collation", _collation, maxQuerySize, builder);
-    }
-
     if (!_originatingCommand.isEmpty()) {
         appendAsObjOrString("originatingCommand",
                             _originatingCommand,
@@ -497,16 +493,6 @@ string OpDebug::report(Client* client,
         s << " planSummary: " << redact(curop.getPlanSummary().toString());
     }
 
-    if (!updateobj.isEmpty()) {
-        s << " update: " << redact(updateobj);
-    }
-
-    auto collation = curop.collation();
-    if (!collation.isEmpty()) {
-        s << " collation: ";
-        collation.toString(s);
-    }
-
     OPDEBUG_TOSTRING_HELP(cursorid);
     OPDEBUG_TOSTRING_HELP(ntoreturn);
     OPDEBUG_TOSTRING_HELP(ntoskip);
@@ -609,15 +595,6 @@ void OpDebug::append(const CurOp& curop,
                             maxElementSize,
                             &b,
                             TruncationMode::kIncludeComment);
-    }
-
-    if (!updateobj.isEmpty()) {
-        appendAsObjOrString("updateobj", updateobj, maxElementSize, &b);
-    }
-
-    auto collation = curop.collation();
-    if (!collation.isEmpty()) {
-        appendAsObjOrString("collation", collation, maxElementSize, &b);
     }
 
     OPDEBUG_APPEND_NUMBER(cursorid);

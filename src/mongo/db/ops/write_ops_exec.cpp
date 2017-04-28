@@ -231,6 +231,22 @@ bool handleError(OperationContext* opCtx,
     return wholeOp.continueOnError;
 }
 
+BSONObj upconvertLegacyUpdate(const UpdateOp::SingleUpdate& op) {
+    BSONObjBuilder builder;
+    builder << "q" << op.query;
+    builder << "u" << op.update;
+    builder << "multi" << op.multi;
+    builder << "upsert" << op.upsert;
+    return builder.obj();
+}
+
+BSONObj upconvertLegacyDelete(const DeleteOp::SingleDelete& op) {
+    BSONObjBuilder builder;
+    builder << "q" << op.query;
+    builder << "limit" << (op.multi ? 0 : 1);
+    return builder.obj();
+}
+
 }  // namespace
 
 static WriteResult::SingleResult createIndex(OperationContext* opCtx,
@@ -482,8 +498,7 @@ static WriteResult::SingleResult performSingleUpdateOp(OperationContext* opCtx,
         curOp.setNS_inlock(ns.ns());
         curOp.setNetworkOp_inlock(dbUpdate);
         curOp.setLogicalOp_inlock(LogicalOp::opUpdate);
-        curOp.setQuery_inlock(op.query);
-        curOp.setCollation_inlock(op.collation);
+        curOp.setQuery_inlock(op.rawUpdate.isEmpty() ? upconvertLegacyUpdate(op) : op.rawUpdate);
         curOp.ensureStarted();
     }
 
@@ -603,8 +618,7 @@ static WriteResult::SingleResult performSingleDeleteOp(OperationContext* opCtx,
         curOp.setNS_inlock(ns.ns());
         curOp.setNetworkOp_inlock(dbDelete);
         curOp.setLogicalOp_inlock(LogicalOp::opDelete);
-        curOp.setQuery_inlock(op.query);
-        curOp.setCollation_inlock(op.collation);
+        curOp.setQuery_inlock(op.rawDelete.isEmpty() ? upconvertLegacyDelete(op) : op.rawDelete);
         curOp.ensureStarted();
     }
 
