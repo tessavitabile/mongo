@@ -153,7 +153,6 @@ UpdateOp parseUpdateCommand(StringData dbName, const BSONObj& cmd) {
         checkTypeInArray(Object, doc, updates);
         op.updates.emplace_back();
         auto& update = op.updates.back();
-        update.rawUpdate = doc.Obj();
         bool haveQ = false;
         bool haveU = false;
         for (auto field : doc.Obj()) {
@@ -203,7 +202,6 @@ DeleteOp parseDeleteCommand(StringData dbName, const BSONObj& cmd) {
         checkTypeInArray(Object, doc, deletes);
         op.deletes.emplace_back();
         auto& del = op.deletes.back();  // delete is a reserved word.
-        del.rawDelete = doc.Obj();
         bool haveQ = false;
         bool haveLimit = false;
         for (auto field : doc.Obj()) {

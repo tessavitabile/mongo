@@ -208,7 +208,8 @@
               },
               operation: "remove",
               planSummary: "COLLSCAN",
-              currentOpFilter: {"query.$comment": "currentop_query", "collation": {locale: "fr"}}
+              currentOpFilter:
+                  {"query.q.$comment": "currentop_query", "query.collation": {locale: "fr"}}
             },
             {
               test: function() {
@@ -218,7 +219,8 @@
               },
               operation: "update",
               planSummary: "COLLSCAN",
-              currentOpFilter: {"query.$comment": "currentop_query", "collation": {locale: "fr"}}
+              currentOpFilter:
+                  {"query.q.$comment": "currentop_query", "query.collation": {locale: "fr"}}
             }
         ];
 

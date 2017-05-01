@@ -178,12 +178,11 @@ TEST(CommandWriteOpsParsers, Update) {
     for (bool upsert : {false, true}) {
         for (bool multi : {false, true}) {
             auto rawUpdate =
-                BSON("q" << query << "u" << update << "collation" << collation << "arrayFilters"
-                         << BSON_ARRAY(arrayFilter)
-                         << "upsert"
-                         << upsert
-                         << "multi"
-                         << multi);
+                BSON("q" << query << "u" << update << "multi" << multi << "upsert" << upsert
+                         << "collation"
+                         << collation
+                         << "arrayFilters"
+                         << BSON_ARRAY(arrayFilter));
             auto cmd = BSON("update" << ns.coll() << "updates" << BSON_ARRAY(rawUpdate));
             auto op = parseUpdateCommand(ns.db(), cmd);
             ASSERT_EQ(op.ns.ns(), ns.ns());
@@ -197,7 +196,7 @@ TEST(CommandWriteOpsParsers, Update) {
             ASSERT_BSONOBJ_EQ(op.updates[0].arrayFilters[0], arrayFilter);
             ASSERT_EQ(op.updates[0].upsert, upsert);
             ASSERT_EQ(op.updates[0].multi, multi);
-            ASSERT_BSONOBJ_EQ(op.updates[0].rawUpdate, rawUpdate);
+            ASSERT_BSONOBJ_EQ(op.updates[0].serializeToBSON(), rawUpdate);
         }
     }
 }
@@ -209,7 +208,7 @@ TEST(CommandWriteOpsParsers, Remove) {
                                    << "en_US");
     for (bool multi : {false, true}) {
         auto rawDelete =
-            BSON("q" << query << "collation" << collation << "limit" << (multi ? 0 : 1));
+            BSON("q" << query << "limit" << (multi ? 0 : 1) << "collation" << collation);
         auto cmd = BSON("delete" << ns.coll() << "deletes" << BSON_ARRAY(rawDelete));
         auto op = parseDeleteCommand(ns.db(), cmd);
         ASSERT_EQ(op.ns.ns(), ns.ns());
@@ -219,7 +218,7 @@ TEST(CommandWriteOpsParsers, Remove) {
         ASSERT_BSONOBJ_EQ(op.deletes[0].query, query);
         ASSERT_BSONOBJ_EQ(op.deletes[0].collation, collation);
         ASSERT_EQ(op.deletes[0].multi, multi);
-        ASSERT_BSONOBJ_EQ(op.deletes[0].rawDelete, rawDelete);
+        ASSERT_BSONOBJ_EQ(op.deletes[0].serializeToBSON(), rawDelete);
     }
 }
 
@@ -340,7 +339,6 @@ TEST(LegacyWriteOpsParsers, Update) {
             ASSERT_BSONOBJ_EQ(op.updates[0].update, update);
             ASSERT_EQ(op.updates[0].upsert, upsert);
             ASSERT_EQ(op.updates[0].multi, multi);
-            ASSERT(op.updates[0].rawUpdate.isEmpty());
         }
     }
 }
@@ -358,7 +356,6 @@ TEST(LegacyWriteOpsParsers, Remove) {
         ASSERT_EQ(op.deletes.size(), 1u);
         ASSERT_BSONOBJ_EQ(op.deletes[0].query, query);
         ASSERT_EQ(op.deletes[0].multi, multi);
-        ASSERT(op.deletes[0].rawDelete.isEmpty());
     }
 }
 }

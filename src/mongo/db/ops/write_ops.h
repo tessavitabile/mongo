@@ -60,16 +60,31 @@ struct InsertOp : ParsedWriteOp {
  */
 struct UpdateOp : ParsedWriteOp {
     struct SingleUpdate {
+        BSONObj serializeToBSON() const {
+            BSONObjBuilder builder;
+            builder << "q" << query;
+            builder << "u" << update;
+            builder << "multi" << multi;
+            builder << "upsert" << upsert;
+            if (!collation.isEmpty()) {
+                builder << "collation" << collation;
+            }
+            if (!arrayFilters.empty()) {
+                BSONArrayBuilder arrayBuilder(builder.subarrayStart("arrayFilters"));
+                for (auto arrayFilter : arrayFilters) {
+                    arrayBuilder.append(arrayFilter);
+                }
+                arrayBuilder.doneFast();
+            }
+            return builder.obj();
+        }
+
         BSONObj query;
         BSONObj update;
         BSONObj collation;
         std::vector<BSONObj> arrayFilters;
         bool multi = false;
         bool upsert = false;
-
-        // The unparsed update: {q: <query>, u: <update>, ...}. This will be empty for legacy
-        // updates.
-        BSONObj rawUpdate;
     };
 
     std::vector<SingleUpdate> updates;
@@ -80,12 +95,18 @@ struct UpdateOp : ParsedWriteOp {
  */
 struct DeleteOp : ParsedWriteOp {
     struct SingleDelete {
+        BSONObj serializeToBSON() const {
+            BSONObjBuilder builder;
+            builder << "q" << query;
+            builder << "limit" << (multi ? 0 : 1);
+            if (!collation.isEmpty()) {
+                builder << "collation" << collation;
+            }
+            return builder.obj();
+        }
         BSONObj query;
         BSONObj collation;
         bool multi = true;
-
-        // The unparsed delete: {q: <query>, ...}. This will be empty for legacy deletes.
-        BSONObj rawDelete;
     };
 
     std::vector<SingleDelete> deletes;
