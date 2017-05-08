@@ -482,7 +482,7 @@ static WriteResult::SingleResult performSingleUpdateOp(OperationContext* opCtx,
         curOp.setNS_inlock(ns.ns());
         curOp.setNetworkOp_inlock(dbUpdate);
         curOp.setLogicalOp_inlock(LogicalOp::opUpdate);
-        curOp.setQuery_inlock(op.serializeToBSON());
+        curOp.setOpDescription_inlock(op.toBSON());
         curOp.ensureStarted();
     }
 
@@ -602,7 +602,7 @@ static WriteResult::SingleResult performSingleDeleteOp(OperationContext* opCtx,
         curOp.setNS_inlock(ns.ns());
         curOp.setNetworkOp_inlock(dbDelete);
         curOp.setLogicalOp_inlock(LogicalOp::opDelete);
-        curOp.setQuery_inlock(op.serializeToBSON());
+        curOp.setOpDescription_inlock(op.toBSON());
         curOp.ensureStarted();
     }
 

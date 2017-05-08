@@ -163,16 +163,16 @@ public:
     explicit CurOp(OperationContext* opCtx);
     ~CurOp();
 
-    bool haveQuery() const {
-        return !_query.isEmpty();
+    bool haveOpDescription() const {
+        return !_opDescription.isEmpty();
     }
 
     /**
      * The BSONObj returned may not be owned by CurOp. Callers should call getOwned() if they plan
      * to reference beyond the lifetime of this CurOp instance.
      */
-    BSONObj query() const {
-        return _query;
+    BSONObj opDescription() const {
+        return _opDescription;
     }
 
     /**
@@ -306,11 +306,11 @@ public:
     }
 
     /**
-     * 'query' must be either an owned BSONObj or guaranteed to outlive the OperationContext it is
-     * associated with.
+     * 'opDescription' must be either an owned BSONObj or guaranteed to outlive the OperationContext
+     * it is associated with.
      */
-    void setQuery_inlock(const BSONObj& query) {
-        _query = query;
+    void setOpDescription_inlock(const BSONObj& opDescription) {
+        _opDescription = opDescription;
     }
 
     /**
@@ -429,7 +429,7 @@ private:
     bool _isCommand{false};
     int _dbprofile{0};  // 0=off, 1=slow, 2=all
     std::string _ns;
-    BSONObj _query;
+    BSONObj _opDescription;
     BSONObj _originatingCommand;  // Used by getMore to display original command.
     OpDebug _debug;
     std::string _message;

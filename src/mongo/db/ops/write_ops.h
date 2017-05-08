@@ -60,7 +60,7 @@ struct InsertOp : ParsedWriteOp {
  */
 struct UpdateOp : ParsedWriteOp {
     struct SingleUpdate {
-        BSONObj serializeToBSON() const {
+        BSONObj toBSON() const {
             BSONObjBuilder builder;
             builder << "q" << query;
             builder << "u" << update;
@@ -95,7 +95,7 @@ struct UpdateOp : ParsedWriteOp {
  */
 struct DeleteOp : ParsedWriteOp {
     struct SingleDelete {
-        BSONObj serializeToBSON() const {
+        BSONObj toBSON() const {
             BSONObjBuilder builder;
             builder << "q" << query;
             builder << "limit" << (multi ? 0 : 1);

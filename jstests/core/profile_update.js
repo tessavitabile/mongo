@@ -32,8 +32,8 @@
     assert.eq(profileObj.ns, coll.getFullName(), tojson(profileObj));
     assert.eq(profileObj.op, "update", tojson(profileObj));
     if (db.getMongo().writeMode() === "commands") {
-        assert.eq(profileObj.query.collation, {locale: "fr"}, tojson(profileObj));
-        assert.eq(profileObj.query.arrayFilters, [{i: 0}], tojson(profileObj));
+        assert.eq(profileObj.command.collation, {locale: "fr"}, tojson(profileObj));
+        assert.eq(profileObj.command.arrayFilters, [{i: 0}], tojson(profileObj));
     }
     assert.eq(profileObj.keysExamined, 1, tojson(profileObj));
     assert.eq(profileObj.docsExamined, 1, tojson(profileObj));
@@ -82,7 +82,7 @@
     assert.writeOK(coll.update({_id: "new value", a: 4}, {$inc: {b: 1}}, {upsert: true}));
     profileObj = getLatestProfilerEntry(testDB);
 
-    assert.eq(profileObj.query,
+    assert.eq(profileObj.command,
               {q: {_id: "new value", a: 4}, u: {$inc: {b: 1}}, multi: false, upsert: true},
               tojson(profileObj));
     assert.eq(profileObj.keysExamined, 0, tojson(profileObj));

@@ -196,7 +196,7 @@ TEST(CommandWriteOpsParsers, Update) {
             ASSERT_BSONOBJ_EQ(op.updates[0].arrayFilters[0], arrayFilter);
             ASSERT_EQ(op.updates[0].upsert, upsert);
             ASSERT_EQ(op.updates[0].multi, multi);
-            ASSERT_BSONOBJ_EQ(op.updates[0].serializeToBSON(), rawUpdate);
+            ASSERT_BSONOBJ_EQ(op.updates[0].toBSON(), rawUpdate);
         }
     }
 }
@@ -218,7 +218,7 @@ TEST(CommandWriteOpsParsers, Remove) {
         ASSERT_BSONOBJ_EQ(op.deletes[0].query, query);
         ASSERT_BSONOBJ_EQ(op.deletes[0].collation, collation);
         ASSERT_EQ(op.deletes[0].multi, multi);
-        ASSERT_BSONOBJ_EQ(op.deletes[0].serializeToBSON(), rawDelete);
+        ASSERT_BSONOBJ_EQ(op.deletes[0].toBSON(), rawDelete);
     }
 }
 
