@@ -52,7 +52,7 @@ if (db.isMaster().msg != "isdbgrid") {
 
     // same, but for update
     assert(contains(resp.log, function(v) {
-        return v.indexOf(" update ") != -1 && v.indexOf("query") != -1 &&
+        return v.indexOf(" update ") != -1 && v.indexOf("command") != -1 &&
             v.indexOf("keysExamined:") != -1 && v.indexOf("docsExamined:") != -1 &&
             v.indexOf("SENTINEL") != -1;
     }));

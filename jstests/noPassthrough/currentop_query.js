@@ -62,7 +62,11 @@
                     testObj.currentOpFilter.ns = coll.getFullName();
                     testObj.currentOpFilter.planSummary = testObj.planSummary;
                     if (testObj.hasOwnProperty("command")) {
-                        testObj.currentOpFilter["query." + testObj.command] = {$exists: true};
+                        if (testObj.command === "find") {
+                            testObj.currentOpFilter["query." + testObj.command] = {$exists: true};
+                        } else {
+                            testObj.currentOpFilter["command." + testObj.command] = {$exists: true};
+                        }
                     } else if (testObj.hasOwnProperty("operation")) {
                         testObj.currentOpFilter.op = testObj.operation;
                     }
@@ -110,10 +114,10 @@
               command: "aggregate",
               planSummary: "IXSCAN { _id: 1 }",
               currentOpFilter: {
-                  "query.pipeline.0.$match.$comment": "currentop_query",
-                  "query.comment": "currentop_query_2",
-                  "query.collation": {locale: "fr"},
-                  "query.hint": {_id: 1}
+                  "command.pipeline.0.$match.$comment": "currentop_query",
+                  "command.comment": "currentop_query_2",
+                  "command.collation": {locale: "fr"},
+                  "command.hint": {_id: 1}
               }
             },
             {
@@ -125,8 +129,10 @@
               },
               command: "count",
               planSummary: "COLLSCAN",
-              currentOpFilter:
-                  {"query.query.$comment": "currentop_query", "query.collation": {locale: "fr"}}
+              currentOpFilter: {
+                  "command.query.$comment": "currentop_query",
+                  "command.collation": {locale: "fr"}
+              }
             },
             {
               test: function() {
@@ -137,8 +143,10 @@
               },
               command: "distinct",
               planSummary: "COLLSCAN",
-              currentOpFilter:
-                  {"query.query.$comment": "currentop_query", "query.collation": {locale: "fr"}}
+              currentOpFilter: {
+                  "command.query.$comment": "currentop_query",
+                  "command.collation": {locale: "fr"}
+              }
             },
             {
               test: function() {
@@ -160,8 +168,10 @@
               },
               command: "findandmodify",
               planSummary: "COLLSCAN",
-              currentOpFilter:
-                  {"query.query.$comment": "currentop_query", "query.collation": {locale: "fr"}}
+              currentOpFilter: {
+                  "command.query.$comment": "currentop_query",
+                  "command.collation": {locale: "fr"}
+              }
             },
             {
               test: function() {
@@ -177,8 +187,8 @@
               command: "group",
               planSummary: "COLLSCAN",
               currentOpFilter: {
-                  "query.group.cond.$comment": "currentop_query",
-                  "query.group.collation": {locale: "fr"}
+                  "command.group.cond.$comment": "currentop_query",
+                  "command.group.collation": {locale: "fr"}
               }
             },
             {
@@ -198,8 +208,10 @@
               },
               command: "mapreduce",
               planSummary: "COLLSCAN",
-              currentOpFilter:
-                  {"query.query.$comment": "currentop_query", "query.collation": {locale: "fr"}}
+              currentOpFilter: {
+                  "command.query.$comment": "currentop_query",
+                  "command.collation": {locale: "fr"}
+              }
             },
             {
               test: function() {
@@ -272,8 +284,10 @@
             },
             command: "geoNear",
             planSummary: "GEO_NEAR_2DSPHERE { loc: \"2dsphere\" }",
-            currentOpFilter:
-                {"query.query.$comment": "currentop_query", "query.collation": {locale: "fr"}}
+            currentOpFilter: {
+                "command.query.$comment": "currentop_query",
+                "command.collation": {locale: "fr"}
+            }
         });
 
         //
@@ -292,7 +306,7 @@
         TestData.commandResult = cmdRes;
 
         var filter = {
-            "query.getMore": TestData.commandResult.cursor.id,
+            "command.getMore": TestData.commandResult.cursor.id,
             "originatingCommand.filter.$comment": "currentop_query"
         };
 
@@ -313,9 +327,9 @@
         //
         if (params.readMode === "legacy") {
             let filter = {
-                "query.getMore": {$gt: 0},
-                "query.collection": "currentop_query",
-                "query.batchSize": 2,
+                "command.getMore": {$gt: 0},
+                "command.collection": "currentop_query",
+                "command.batchSize": 2,
                 originatingCommand: {
                     find: "currentop_query",
                     filter: {},
@@ -400,7 +414,7 @@
         TestData.commandResult = cmdRes;
 
         filter = {
-            "query.getMore": TestData.commandResult.cursor.id,
+            "command.getMore": TestData.commandResult.cursor.id,
             "originatingCommand.$truncated": {$regex: truncatedQueryString},
             "originatingCommand.comment": "currentop_query"
         };
@@ -433,8 +447,8 @@
             },
             planSummary: "COLLSCAN",
             currentOpFilter: {
-                "query.$truncated": {$regex: truncatedQueryString},
-                "query.comment": "currentop_query"
+                "command.$truncated": {$regex: truncatedQueryString},
+                "command.comment": "currentop_query"
             }
         });
 

@@ -379,11 +379,7 @@ void CurOp::reportState(BSONObjBuilder* builder) {
             builder,
             TruncationMode::kIncludeComment);
     } else {
-        const StringData fieldName =
-            (_logicalOp == LogicalOp::opCommand || _logicalOp == LogicalOp::opUpdate ||
-             _logicalOp == LogicalOp::opDelete)
-            ? "command"
-            : "query";
+        const StringData fieldName = (_logicalOp == LogicalOp::opQuery) ? "query" : "command";
         appendAsObjOrString(
             fieldName,
             _opDescription,
@@ -485,11 +481,7 @@ string OpDebug::report(Client* client,
                 s << redact(query);
             }
         } else {
-            const StringData fieldName =
-                (logicalOp == LogicalOp::opCommand || logicalOp == LogicalOp::opUpdate ||
-                 logicalOp == LogicalOp::opDelete)
-                ? "command"
-                : "query";
+            const StringData fieldName = (logicalOp == LogicalOp::opQuery) ? "query" : "command";
             s << " " << fieldName << ": ";
             s << redact(query);
         }
@@ -590,11 +582,7 @@ void OpDebug::append(const CurOp& curop,
                             &b,
                             TruncationMode::kIncludeComment);
     } else if (curop.haveOpDescription()) {
-        const StringData fieldName =
-            (logicalOp == LogicalOp::opCommand || logicalOp == LogicalOp::opUpdate ||
-             logicalOp == LogicalOp::opDelete)
-            ? "command"
-            : "query";
+        const StringData fieldName = (logicalOp == LogicalOp::opQuery) ? "query" : "command";
         appendAsObjOrString(
             fieldName,
             curop.opDescription(),
