@@ -206,4 +206,69 @@ void UpdateObjectNode::setChild(std::string field, std::unique_ptr<UpdateNode> c
     }
 }
 
+Status SetNode::apply(mutablebson::Element element,
+                      FieldRef* pathToCreate,
+                      FieldRef* pathTaken,
+                      StringData matchedField,
+                      bool fromReplication,
+                      const UpdateIndexData* indexData,
+                      LogBuilder* logBuilder,
+                      bool* indexesAffected,
+                      bool* noop) {
+    *indexesAffected = false;
+    *noop = false;
+
+    // If there is a child with field name 'matchedField', the positional child must be merged with
+    // that child.
+    UpdateNode* positionalChild = nullptr;
+    bool mergedPositionalChild = false;
+
+    if (_positionalChild.get()) {
+        uassert(ErrorCodes::BadValue,
+                "The positional operator did not find the match needed from the query.",
+                !matchedField.empty());
+
+        auto matchedFieldChild = _children.find(matchedField.toString());
+        if (matchedFieldChild == _children.end()) {
+
+            // There is no child with field name 'matchedField', so no merging is required.
+            positionalChild = _positionalChild.get();
+        } else {
+            mergedPositionalChild = true;
+            auto mergedChild = _mergedChildren.find(matchedFieldChild.first);
+            if (mergedChild == _mergedChildren.end()) {
+
+                // We have not stored the result of merging the positional child with the child with
+                // field name 'matchedField', so we must perform the merge.
+                FieldRef* fullPath = pathTaken;
+                std::unique_ptr<FieldRef> ownedFullPath;
+                if (!pathToCreate->empty()) {
+
+                    // TODO: Use FieldRef append changes after these are committed.
+                    ownedFullPath.reset(
+                        new FieldRef(pathTaken->dottedField() + "." + pathToCreate->dottedField()));
+                    fullPath = ownedFullPath.get();
+                }
+                auto mergedChildStatus = createUpdateNodeByMerging(
+                    *_positionalChild, *matchedFieldChild.second, fullPath);
+                uassertStatusOK(mergedChildStatus.getStatus());
+
+                // Store the result of merging the positional child with the child with field name
+                // 'matchedField'.
+                _mergedChildren[matchedFieldChild.first] = std::move(mergedChildStatus.getValue());
+                positionalChild = _mergedChildren[matchedField].get();
+            } else {
+
+                // We can use the stored result of merging the positional child with the child with
+                // field name 'matchedField'.
+                positionalChild = mergedChild.second.get();
+            }
+        }
+    }
+
+    bool childAffectsIndexes = false;
+    bool childNoop = false;
+    uassertStatusOK()
+}
+
 }  // namespace mongo

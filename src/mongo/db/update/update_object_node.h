@@ -80,6 +80,16 @@ public:
         _positionalChild->setCollator(collator);
     }
 
+    Status apply(mutablebson::Element element,
+                 FieldRef* pathToCreate,
+                 FieldRef* pathTaken,
+                 StringData matchedField,
+                 bool fromReplication,
+                 const UpdateIndexData* indexData,
+                 LogBuilder* logBuilder,
+                 bool* indexesAffected,
+                 bool* noop) final;
+
     /**
      * Returns the child with field name 'field' or nullptr if there is no such child.
      */
@@ -105,6 +115,7 @@ private:
 
     stdx::unordered_map<std::string, clonable_ptr<UpdateNode>> _children;
     clonable_ptr<UpdateNode> _positionalChild;
+    stdx::unordered_map<StringData, clonable_ptr<UpdateNode>> _mergedChildren;
 };
 
 }  // namespace mongo
