@@ -104,6 +104,7 @@ struct DeleteOp : ParsedWriteOp {
             }
             return builder.obj();
         }
+
         BSONObj query;
         BSONObj collation;
         bool multi = true;
