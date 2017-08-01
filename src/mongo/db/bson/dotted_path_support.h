@@ -31,6 +31,7 @@
 #include <cstddef>
 #include <set>
 
+#include "mongo/bson/bsonelement_comparator_interface.h"
 #include "mongo/bson/bsonobj.h"
 
 namespace mongo {

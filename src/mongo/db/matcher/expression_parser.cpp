@@ -723,6 +723,7 @@ Status MatchExpressionParser::_parseInExpression(InMatchExpression* inExpression
                                                  const BSONObj& theArray,
                                                  const CollatorInterface* collator) {
     inExpression->setCollator(collator);
+    std::vector<BSONElement> equalities;
     BSONObjIterator i(theArray);
     while (i.more()) {
         BSONElement e = i.next();
@@ -741,12 +742,10 @@ Status MatchExpressionParser::_parseInExpression(InMatchExpression* inExpression
             if (!s.isOK())
                 return s;
         } else {
-            Status s = inExpression->addEquality(e);
-            if (!s.isOK())
-                return s;
+            equalities.push_back(e);
         }
     }
-    return Status::OK();
+    return inExpression->setEqualities(std::move(equalities));
 }
 
 StatusWith<std::unique_ptr<TypeMatchExpression>> MatchExpressionParser::parseTypeFromAlias(

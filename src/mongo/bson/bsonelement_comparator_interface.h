@@ -28,10 +28,16 @@
 
 #pragma once
 
+#include <boost/container/flat_set.hpp>
+
 #include "mongo/bson/bson_comparator_interface_base.h"
 #include "mongo/bson/bsonelement.h"
 
 namespace mongo {
+
+typedef std::set<BSONElement, BSONElementCmpWithoutField> BSONElementSet;
+typedef boost::container::flat_set<BSONElement, BSONElementCmpWithoutField> BSONElementFlatSet;
+typedef std::multiset<BSONElement, BSONElementCmpWithoutField> BSONElementMSet;
 
 /**
  * A BSONElement::ComparatorInterface is an abstract class for comparing BSONElement objects. Usage

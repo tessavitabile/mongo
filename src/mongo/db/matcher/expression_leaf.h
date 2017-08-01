@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include "mongo/bson/bsonelement_comparator_interface.h"
 #include "mongo/bson/bsonmisc.h"
 #include "mongo/bson/bsonobj.h"
 #include "mongo/db/matcher/expression.h"
@@ -317,11 +318,11 @@ public:
      */
     virtual void _doSetCollator(const CollatorInterface* collator);
 
-    Status addEquality(const BSONElement& elt);
+    Status setEqualities(std::vector<BSONElement> equalities);
 
     Status addRegex(std::unique_ptr<RegexMatchExpression> expr);
 
-    const BSONElementSet& getEqualities() const {
+    const BSONElementFlatSet& getEqualities() const {
         return _equalitySet;
     }
 
@@ -353,7 +354,7 @@ private:
 
     // Set of equality elements associated with this expression. '_collator' is used as a comparator
     // for this set.
-    BSONElementSet _equalitySet;
+    BSONElementFlatSet _equalitySet;
 
     // Original container of equality elements, including duplicates. Needed for re-computing
     // '_equalitySet' in case '_collator' changes after elements have been added.

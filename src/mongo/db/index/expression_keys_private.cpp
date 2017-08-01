@@ -32,6 +32,7 @@
 
 #include <utility>
 
+#include "mongo/bson/bsonelement_comparator_interface.h"
 #include "mongo/bson/simple_bsonobj_comparator.h"
 #include "mongo/db/bson/dotted_path_support.h"
 #include "mongo/db/field_ref.h"
