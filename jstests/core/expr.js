@@ -10,23 +10,24 @@
     //
 
     coll.drop();
-    assert.writeOK(coll.insert({a: 5}))
-        assert.eq(1, coll.aggregate([{$match: {$expr: {$eq: ["$a", 5]}}}]).itcount());
+    assert.writeOK(coll.insert({a: 5}));
+    assert.eq(1, coll.aggregate([{$match: {$expr: {$eq: ["$a", 5]}}}]).itcount());
 
     //
     // $expr in count.
     //
 
     coll.drop();
-    assert.writeOK(coll.insert({a: 5})) assert.eq(1, coll.find({$expr: {$eq: ["$a", 5]}}).count());
+    assert.writeOK(coll.insert({a: 5}));
+    assert.eq(1, coll.find({$expr: {$eq: ["$a", 5]}}).count());
 
     //
     // $expr in distinct.
     //
 
     coll.drop();
-    assert.writeOK(coll.insert({a: 5}))
-        assert.eq(1, coll.distinct("a", {$expr: {$eq: ["$a", 5]}}).length);
+    assert.writeOK(coll.insert({a: 5}));
+    assert.eq(1, coll.distinct("a", {$expr: {$eq: ["$a", 5]}}).length);
 
     //
     // $expr in find.
@@ -34,8 +35,8 @@
 
     // $expr is allowed in query.
     coll.drop();
-    assert.writeOK(coll.insert({a: 5}))
-        assert.eq(1, coll.find({$expr: {$eq: ["$a", 5]}}).itcount());
+    assert.writeOK(coll.insert({a: 5}));
+    assert.eq(1, coll.find({$expr: {$eq: ["$a", 5]}}).itcount());
 
     // $expr is allowed in find with explain.
     assert.commandWorked(coll.find({$expr: {$eq: ["$a", 5]}}).explain());

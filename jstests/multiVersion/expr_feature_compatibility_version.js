@@ -45,7 +45,7 @@
     // The validator is already in place, so it should still cause this insert to fail.
     assert.writeError(coll.insert({a: "bad"}), ErrorCodes.DocumentValidationFailure);
 
-    // Trying to create a new collection with a JSON Schema validator should fail while feature
+    // Trying to create a new collection with a validator containing $expr should fail while feature
     // compatibility version is 3.4.
     let res = testDB.createCollection("coll2", {validator: {$expr: {$eq: ["$a", "good"]}}});
     assert.commandFailedWithCode(res, ErrorCodes.ExprNotAllowed);
@@ -132,7 +132,7 @@
     assert.commandWorked(
         testDB.createCollection("coll3", {validator: {$expr: {$eq: ["$a", "good"]}}}));
 
-    // We should also be able to modify a collection to have a $jsonSchema validator.
+    // We should also be able to modify a collection to have a validator containing $expr.
     assert.commandWorked(
         testDB.runCommand({collMod: "coll3", validator: {$expr: {$eq: ["$a", "good"]}}}));
 
