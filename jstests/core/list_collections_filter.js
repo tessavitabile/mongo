@@ -84,6 +84,9 @@
     },
                         []);
 
+    // Filter with $expr.
+    testListCollections({$expr: {$eq: ["$name", "lists"]}}, ["lists"]);
+
     // No extensions are allowed in filters.
     assert.throws(function() {
         mydb.getCollectionInfos({$text: {$search: "str"}});
@@ -98,9 +101,5 @@
     assert.throws(function() {
         mydb.getCollectionInfos(
             {a: {$nearSphere: {$geometry: {type: "Point", coordinates: [0, 0]}}}});
-    });
-
-    assert.throws(function() {
-        mydb.getCollectionInfos({$expr: {$eq: ["$a", 5]}});
     });
 }());

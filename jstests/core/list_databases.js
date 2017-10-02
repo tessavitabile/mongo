@@ -62,6 +62,12 @@
     assert.eq(1, cmdRes.databases.length, tojson(cmdRes));
     verifyNameOnly(cmdRes);
 
+    // $expr in filter.
+    cmdRes = assert.commandWorked(db.adminCommand(
+        {listDatabases: 1, filter: {$expr: {$eq: ["$name", "jstest_list_databases_zap"]}}}));
+    assert.eq(1, cmdRes.databases.length, tojson(cmdRes));
+    assert.eq("jstest_list_databases_zap", cmdRes.databases[0].name, tojson(cmdRes));
+
     // No extensions are allowed in filters.
     assert.commandFailed(db.adminCommand({listDatabases: 1, filter: {$text: {$search: "str"}}}));
     assert.commandFailed(db.adminCommand({
@@ -76,6 +82,4 @@
         listDatabases: 1,
         filter: {a: {$nearSphere: {$geometry: {type: "Point", coordinates: [0, 0]}}}}
     }));
-
-    assert.commandFailed(db.adminCommand({listDatabases: 1, filter: {$expr: {$eq: ["$a", 5]}}}));
 }());

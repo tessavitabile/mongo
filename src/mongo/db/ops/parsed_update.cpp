@@ -115,14 +115,18 @@ Status ParsedUpdate::parseQueryToCQ() {
         qr->setLimit(1);
     }
 
+    // $expr is not allowed in the query for an upsert, since it is not clear what the equality
+    // extraction behavior for $expr should be.
+    MatchExpressionParser::AllowedFeatureSet allowedMatcherFeatures =
+        MatchExpressionParser::kAllowAllSpecialFeatures;
+    if (_request->isUpsert()) {
+        allowedMatcherFeatures =
+            allowedMatcherFeatures & ~MatchExpressionParser::AllowedFeatures::kExpr;
+    }
+
     boost::intrusive_ptr<ExpressionContext> expCtx;
-    auto statusWithCQ =
-        CanonicalQuery::canonicalize(_opCtx,
-                                     std::move(qr),
-                                     std::move(expCtx),
-                                     extensionsCallback,
-                                     MatchExpressionParser::kAllowAllSpecialFeatures &
-                                         ~MatchExpressionParser::AllowedFeatures::kExpr);
+    auto statusWithCQ = CanonicalQuery::canonicalize(
+        _opCtx, std::move(qr), std::move(expCtx), extensionsCallback, allowedMatcherFeatures);
     if (statusWithCQ.isOK()) {
         _canonicalQuery = std::move(statusWithCQ.getValue());
     }

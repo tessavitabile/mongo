@@ -413,13 +413,17 @@ Status ChunkManagerTargeter::targetUpdate(
     if (!collation.isEmpty()) {
         qr->setCollation(collation);
     }
+    // $expr is not allowed in the query for an upsert, since it is not clear what the equality
+    // extraction behavior for $expr should be.
+    MatchExpressionParser::AllowedFeatureSet allowedMatcherFeatures =
+        MatchExpressionParser::kAllowAllSpecialFeatures;
+    if (updateDoc.getUpsert()) {
+        allowedMatcherFeatures =
+            allowedMatcherFeatures & ~MatchExpressionParser::AllowedFeatures::kExpr;
+    }
     const boost::intrusive_ptr<ExpressionContext> expCtx;
-    auto cq = CanonicalQuery::canonicalize(opCtx,
-                                           std::move(qr),
-                                           expCtx,
-                                           ExtensionsCallbackNoop(),
-                                           MatchExpressionParser::kAllowAllSpecialFeatures &
-                                               ~MatchExpressionParser::AllowedFeatures::kExpr);
+    auto cq = CanonicalQuery::canonicalize(
+        opCtx, std::move(qr), expCtx, ExtensionsCallbackNoop(), allowedMatcherFeatures);
     if (!cq.isOK()) {
         return Status(cq.getStatus().code(),
                       str::stream() << "Could not parse update query " << updateDoc.getQ()
@@ -497,8 +501,7 @@ Status ChunkManagerTargeter::targetDelete(
                                            std::move(qr),
                                            expCtx,
                                            ExtensionsCallbackNoop(),
-                                           MatchExpressionParser::kAllowAllSpecialFeatures &
-                                               ~MatchExpressionParser::AllowedFeatures::kExpr);
+                                           MatchExpressionParser::kAllowAllSpecialFeatures);
     if (!cq.isOK()) {
         return Status(cq.getStatus().code(),
                       str::stream() << "Could not parse delete query " << deleteDoc.getQ()

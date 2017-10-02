@@ -108,7 +108,7 @@ TEST(PullNodeTest, InitWithExprElemFails) {
     PullNode node;
     auto status = node.init(update["$pull"]["a"], expCtx);
     ASSERT_NOT_OK(status);
-    ASSERT_EQUALS(ErrorCodes::BadValue, status);
+    ASSERT_EQUALS(ErrorCodes::ExprNotAllowed, status);
 }
 
 TEST(PullNodeTest, InitWithExprObjectFails) {
@@ -117,7 +117,7 @@ TEST(PullNodeTest, InitWithExprObjectFails) {
     PullNode node;
     auto status = node.init(update["$pull"]["a"], expCtx);
     ASSERT_NOT_OK(status);
-    ASSERT_EQUALS(ErrorCodes::BadValue, status);
+    ASSERT_EQUALS(ErrorCodes::ExprNotAllowed, status);
 }
 
 TEST_F(PullNodeTest, TargetNotFound) {

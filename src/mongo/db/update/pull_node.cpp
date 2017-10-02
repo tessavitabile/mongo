@@ -42,7 +42,11 @@ namespace mongo {
 class PullNode::ObjectMatcher final : public PullNode::ElementMatcher {
 public:
     ObjectMatcher(BSONObj matchCondition, const boost::intrusive_ptr<ExpressionContext>& expCtx)
-        : _matchExpr(matchCondition, expCtx) {}
+        : _matchExpr(matchCondition,
+                     expCtx,
+                     stdx::make_unique<ExtensionsCallbackNoop>(),
+                     MatchExpressionParser::kDefaultSpecialFeatures &
+                         ~MatchExpressionParser::AllowedFeatures::kExpr) {}
 
     std::unique_ptr<ElementMatcher> clone() const final {
         return stdx::make_unique<ObjectMatcher>(*this);
@@ -75,7 +79,11 @@ class PullNode::WrappedObjectMatcher final : public PullNode::ElementMatcher {
 public:
     WrappedObjectMatcher(BSONElement matchCondition,
                          const boost::intrusive_ptr<ExpressionContext>& expCtx)
-        : _matchExpr(matchCondition.wrap(""), expCtx) {}
+        : _matchExpr(matchCondition.wrap(""),
+                     expCtx,
+                     stdx::make_unique<ExtensionsCallbackNoop>(),
+                     MatchExpressionParser::kDefaultSpecialFeatures &
+                         ~MatchExpressionParser::AllowedFeatures::kExpr) {}
 
     std::unique_ptr<ElementMatcher> clone() const final {
         return stdx::make_unique<WrappedObjectMatcher>(*this);

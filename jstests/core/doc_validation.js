@@ -98,4 +98,8 @@
     assert.writeOK(coll.update({_id: 'invalid2'}, {$set: {a: 1}}));
     coll.drop();
 
+    // The validator is allowed to contain $expr.
+    assert.commandWorked(db.createCollection(collName, {validator: {$expr: {$eq: ["$a", 5]}}}));
+    assert.commandWorked(
+        db.runCommand({"collMod": collName, "validator": {$expr: {$eq: ["$a", 4]}}}));
 })();

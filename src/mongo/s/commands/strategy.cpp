@@ -341,8 +341,7 @@ DbResponse Strategy::queryOp(OperationContext* opCtx, const NamespaceString& nss
                                      q,
                                      expCtx,
                                      ExtensionsCallbackNoop(),
-                                     MatchExpressionParser::kAllowAllSpecialFeatures &
-                                         ~MatchExpressionParser::AllowedFeatures::kExpr));
+                                     MatchExpressionParser::kAllowAllSpecialFeatures));
 
     // If the $explain flag was set, we must run the operation on the shards as an explain command
     // rather than a find command.

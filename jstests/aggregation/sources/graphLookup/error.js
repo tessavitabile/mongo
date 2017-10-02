@@ -295,18 +295,6 @@ load("jstests/aggregation/extras/utils.js");  // For "assertErrorCode".
     };
     assertErrorCode(local, pipeline, 40186, "cannot use $near inside $graphLookup at any depth");
 
-    pipeline = {
-        $graphLookup: {
-            from: 'foreign',
-            startWith: {$literal: 0},
-            connectToField: "a",
-            connectFromField: "b",
-            as: "output",
-            restrictSearchWithMatch: {$expr: {$eq: ["$x", 5]}}
-        }
-    };
-    assertErrorCode(local, pipeline, 40186, "cannot use $expr inside $graphLookup");
-
     // $graphLookup can only consume at most 100MB of memory.
     var foreign = db.foreign;
     foreign.drop();

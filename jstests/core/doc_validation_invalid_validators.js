@@ -48,9 +48,6 @@
     assert.commandFailed(
         db.runCommand({"collMod": collName, "validator": {$nearSphere: {place: "holder"}}}));
 
-    assert.commandFailed(
-        db.runCommand({"collMod": collName, "validator": {$expr: {$eq: ["$a", 5]}}}));
-
     coll.drop();
 
     // Create collection without document validator.

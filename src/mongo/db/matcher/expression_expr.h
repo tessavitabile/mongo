@@ -66,6 +66,8 @@ public:
 
     bool equivalent(const MatchExpression* other) const final;
 
+    void _doSetCollator(const CollatorInterface* collator) final;
+
     MatchCategory getCategory() const final {
         return MatchCategory::kOther;
     }

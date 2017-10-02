@@ -90,7 +90,14 @@ const std::regex ExpressionWithPlaceholder::placeholderRegex("^[a-z][a-zA-Z0-9]*
 // static
 StatusWith<std::unique_ptr<ExpressionWithPlaceholder>> ExpressionWithPlaceholder::parse(
     BSONObj rawFilter, const boost::intrusive_ptr<ExpressionContext>& expCtx) {
-    StatusWithMatchExpression statusWithFilter = MatchExpressionParser::parse(rawFilter, expCtx);
+    // $expr is not allowed because the expression with placeholder is not intended to be matched
+    // against the root of the document.
+    StatusWithMatchExpression statusWithFilter =
+        MatchExpressionParser::parse(rawFilter,
+                                     expCtx,
+                                     ExtensionsCallbackNoop(),
+                                     MatchExpressionParser::kDefaultSpecialFeatures &
+                                         ~MatchExpressionParser::AllowedFeatures::kExpr);
 
     if (!statusWithFilter.isOK()) {
         return statusWithFilter.getStatus();

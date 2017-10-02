@@ -1692,7 +1692,7 @@ StatusWithMatchExpression MatchExpressionParser::_parseExpr(
     AllowedFeatureSet allowedFeatures,
     const boost::intrusive_ptr<ExpressionContext>& expCtx) {
     if ((allowedFeatures & AllowedFeatures::kExpr) == 0u) {
-        return {Status(ErrorCodes::BadValue, "$expr is not allowed in this context")};
+        return {Status(ErrorCodes::ExprNotAllowed, "$expr is not allowed in this context")};
     }
 
     invariant(expCtx);
