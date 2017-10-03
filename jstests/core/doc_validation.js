@@ -100,6 +100,10 @@
 
     // The validator is allowed to contain $expr.
     assert.commandWorked(db.createCollection(collName, {validator: {$expr: {$eq: ["$a", 5]}}}));
+    assert.writeOK(coll.insert({a: 5}));
+    assertFailsValidation(coll.insert({a: 4}));
     assert.commandWorked(
         db.runCommand({"collMod": collName, "validator": {$expr: {$eq: ["$a", 4]}}}));
+    assert.writeOK(coll.insert({a: 4}));
+    assertFailsValidation(coll.insert({a: 5}));
 })();

@@ -1010,8 +1010,7 @@ auto mongo::userCreateNSImpl(OperationContext* opCtx,
                 ServerGlobalParams::FeatureCompatibility::Version::k34) {
             // $jsonSchema and $expr are only permitted when the feature compatibility version is
             // newer than 3.4. Note that we don't enforce this feature compatibility check when we
-            // are on the secondary or on a backup instance, as indicated by
-            // !validateFeaturesAsMaster.
+            // are on the secondary, as indicated by !validateFeaturesAsMaster.
             allowedFeatures |= MatchExpressionParser::kJSONSchema;
             allowedFeatures |= MatchExpressionParser::kExpr;
         }
@@ -1025,18 +1024,12 @@ auto mongo::userCreateNSImpl(OperationContext* opCtx,
         // We check the status of the parse to see if there are any banned features, but we don't
         // actually need the result for now.
         if (!statusWithMatcher.isOK()) {
-            // The default error messages for disallowed $jsonSchema and $expr are not descriptive
-            // enough, so we rewrite them here.
-            if (statusWithMatcher.getStatus().code() == ErrorCodes::JSONSchemaNotAllowed) {
-                return {ErrorCodes::JSONSchemaNotAllowed,
+            if (statusWithMatcher.getStatus().code() == ErrorCodes::QueryFeatureNotAllowed) {
+                // The default error message for disallowed $jsonSchema and $expr is not descriptive
+                // enough, so we rewrite it here.
+                return {ErrorCodes::QueryFeatureNotAllowed,
                         str::stream() << "The featureCompatibilityVersion must be 3.6 to create a "
-                                         "collection with a $jsonSchema validator. See "
-                                      << feature_compatibility_version::kDochubLink
-                                      << "."};
-            } else if (statusWithMatcher.getStatus().code() == ErrorCodes::ExprNotAllowed) {
-                return {ErrorCodes::ExprNotAllowed,
-                        str::stream() << "The featureCompatibilityVersion must be 3.6 to create a "
-                                         "collection validator using $expr. See "
+                                         "collection validator using 3.6 query featuress. See "
                                       << feature_compatibility_version::kDochubLink
                                       << "."};
             } else {

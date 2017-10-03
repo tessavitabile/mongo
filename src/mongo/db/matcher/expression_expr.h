@@ -66,8 +66,6 @@ public:
 
     bool equivalent(const MatchExpression* other) const final;
 
-    void _doSetCollator(const CollatorInterface* collator) final;
-
     MatchCategory getCategory() const final {
         return MatchCategory::kOther;
     }
@@ -85,6 +83,8 @@ public:
     }
 
 private:
+    void _doSetCollator(const CollatorInterface* collator) final;
+
     void _doAddDependencies(DepsTracker* deps) const final {
         if (_expression) {
             _expression->addDependencies(deps);

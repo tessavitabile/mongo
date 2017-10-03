@@ -247,6 +247,13 @@ TEST(ExpressionWithPlaceholderTest, ExprExpressionFailsToParse) {
     ASSERT_NOT_OK(status.getStatus());
 }
 
+TEST(ExpressionWithPlaceholderTest, JSONSchemaExpressionFailsToParse) {
+    boost::intrusive_ptr<ExpressionContextForTest> expCtx(new ExpressionContextForTest());
+    auto rawFilter = fromjson("{$jsonSchema: {}}");
+    auto status = ExpressionWithPlaceholder::parse(rawFilter, expCtx);
+    ASSERT_NOT_OK(status.getStatus());
+}
+
 TEST(ExpressionWithPlaceholderTest, EquivalentIfPlaceholderAndExpressionMatch) {
     boost::intrusive_ptr<ExpressionContextForTest> expCtx(new ExpressionContextForTest());
     auto rawFilter1 = fromjson("{i: 5}}");

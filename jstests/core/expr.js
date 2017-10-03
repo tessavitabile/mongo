@@ -2,15 +2,14 @@
 (function() {
     "use strict";
 
-    let coll = db.expr;
+    const coll = db.expr;
 
-    let isMaster = db.runCommand("ismaster");
+    const isMaster = db.runCommand("ismaster");
     assert.commandWorked(isMaster);
-    let isMongos = (isMaster.msg === "isdbgrid");
+    const isMongos = (isMaster.msg === "isdbgrid");
 
     //
-    // $expr in aggregate. Included for completeness. More extensive variable testing is done
-    // elsewhere.
+    // $expr in aggregate.
     //
 
     coll.drop();
@@ -134,7 +133,7 @@
     assert.writeOK(coll.insert({a: 5}));
     let mapReduceOut = coll.mapReduce(
         function() {
-            emit(this.str, 1);
+            emit(this.a, 1);
         },
         function(key, values) {
             return Array.sum(values);
