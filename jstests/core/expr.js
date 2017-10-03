@@ -4,6 +4,10 @@
 
     let coll = db.expr;
 
+    let isMaster = db.runCommand("ismaster");
+    assert.commandWorked(isMaster);
+    let isMongos = (isMaster.msg === "isdbgrid");
+
     //
     // $expr in aggregate. Included for completeness. More extensive variable testing is done
     // elsewhere.
@@ -108,16 +112,19 @@
     // $expr in group.
     //
 
-    coll.drop();
-    assert.writeOK(coll.insert({a: 5}));
-    assert.eq([{a: 5, count: 1}], coll.group({
-        cond: {$expr: {$eq: ["$a", 5]}},
-        key: {a: 1},
-        initial: {count: 0},
-        reduce: function(curr, result) {
-            result.count += 1;
-        }
-    }));
+    // The group command is not permitted in sharded collections.
+    if (!isMongos) {
+        coll.drop();
+        assert.writeOK(coll.insert({a: 5}));
+        assert.eq([{a: 5, count: 1}], coll.group({
+            cond: {$expr: {$eq: ["$a", 5]}},
+            key: {a: 1},
+            initial: {count: 0},
+            reduce: function(curr, result) {
+                result.count += 1;
+            }
+        }));
+    }
 
     //
     // $expr in mapReduce.
@@ -153,9 +160,8 @@
     // $expr is allowed in the query when upsert=false.
     coll.drop();
     assert.writeOK(coll.insert({_id: 0, a: 5}));
-    writeRes = coll.update({_id: 0, $expr: {$eq: ["$a", 5]}}, {$set: {b: 6}});
-    assert.writeOK(writeRes);
-    assert.eq(1, writeRes.nModified);
+    assert.writeOK(coll.update({_id: 0, $expr: {$eq: ["$a", 5]}}, {$set: {b: 6}}));
+    assert.eq({_id: 0, a: 5, b: 6}, coll.findOne({_id: 0}));
 
     // $expr is not allowed in the query when upsert=true.
     coll.drop();
