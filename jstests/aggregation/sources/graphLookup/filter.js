@@ -89,6 +89,6 @@
                 as: "results",
                 restrictSearchWithMatch: {$expr: {$eq: ["$shouldBeIncluded", true]}}
             }
-        })
+        });
     });
 })();
