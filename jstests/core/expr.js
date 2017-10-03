@@ -43,7 +43,8 @@
 
     // $expr is not allowed in $elemMatch projection.
     coll.drop();
-    assert.writeOK(coll.insert({a: [{b: 5}]})) assert.throws(function() {
+    assert.writeOK(coll.insert({a: [{b: 5}]}));
+    assert.throws(function() {
         coll.find({}, {a: {$elemMatch: {$expr: {$eq: ["$b", 5]}}}}).itcount();
     });
 
