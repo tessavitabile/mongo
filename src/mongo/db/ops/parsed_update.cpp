@@ -120,8 +120,7 @@ Status ParsedUpdate::parseQueryToCQ() {
     MatchExpressionParser::AllowedFeatureSet allowedMatcherFeatures =
         MatchExpressionParser::kAllowAllSpecialFeatures;
     if (_request->isUpsert()) {
-        allowedMatcherFeatures =
-            allowedMatcherFeatures & ~MatchExpressionParser::AllowedFeatures::kExpr;
+        allowedMatcherFeatures &= ~MatchExpressionParser::AllowedFeatures::kExpr;
     }
 
     boost::intrusive_ptr<ExpressionContext> expCtx;
@@ -129,6 +128,13 @@ Status ParsedUpdate::parseQueryToCQ() {
         _opCtx, std::move(qr), std::move(expCtx), extensionsCallback, allowedMatcherFeatures);
     if (statusWithCQ.isOK()) {
         _canonicalQuery = std::move(statusWithCQ.getValue());
+    }
+
+    if (statusWithCQ.getStatus().code() == ErrorCodes::QueryFeatureNotAllowed) {
+        // The default error message for disallowed $expr is not descriptive enough, so we rewrite
+        // it here.
+        return {ErrorCodes::QueryFeatureNotAllowed,
+                "$expr is not allowed in the query for an upsert"};
     }
 
     return statusWithCQ.getStatus();

@@ -331,7 +331,7 @@ Status ChunkManagerTargeter::targetUpdate(
     // into the query doc, and to correctly support upsert we must target a single shard.
     //
     // The rule is simple - If the update is replacement style (no '$set'), we target using the
-    // update.  If the update is replacement style, we target using the query.
+    // update.  If the update is not replacement style, we target using the query.
     //
     // If we have the exact shard key in either the query or replacement doc, we target using
     // that extracted key.
@@ -415,15 +415,19 @@ Status ChunkManagerTargeter::targetUpdate(
     }
     // $expr is not allowed in the query for an upsert, since it is not clear what the equality
     // extraction behavior for $expr should be.
-    MatchExpressionParser::AllowedFeatureSet allowedMatcherFeatures =
-        MatchExpressionParser::kAllowAllSpecialFeatures;
+    auto allowedMatcherFeatures = MatchExpressionParser::kAllowAllSpecialFeatures;
     if (updateDoc.getUpsert()) {
-        allowedMatcherFeatures =
-            allowedMatcherFeatures & ~MatchExpressionParser::AllowedFeatures::kExpr;
+        allowedMatcherFeatures &= ~MatchExpressionParser::AllowedFeatures::kExpr;
     }
     const boost::intrusive_ptr<ExpressionContext> expCtx;
     auto cq = CanonicalQuery::canonicalize(
         opCtx, std::move(qr), expCtx, ExtensionsCallbackNoop(), allowedMatcherFeatures);
+    if (!cq.isOK() && cq.getStatus().code() == ErrorCodes::QueryFeatureNotAllowed) {
+        // The default error message for disallowed $expr is not descriptive enough, so we rewrite
+        // it here.
+        return {ErrorCodes::QueryFeatureNotAllowed,
+                "$expr is not allowed in the query for an upsert"};
+    }
     if (!cq.isOK()) {
         return Status(cq.getStatus().code(),
                       str::stream() << "Could not parse update query " << updateDoc.getQ()

@@ -113,7 +113,7 @@ StatusWith<LogicalSessionIdSet> SessionsCollectionSharded::findRemovedSessions(
                                                std::move(qr.getValue()),
                                                expCtx,
                                                ExtensionsCallbackNoop(),
-                                               MatchExpressionParser::kAllowAllSpecialFeatures);
+                                               MatchExpressionParser::kBanAllSpecialFeatures);
         if (!cq.isOK()) {
             return cq.getStatus();
         }

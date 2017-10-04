@@ -9,6 +9,9 @@
 (function() {
     "use strict";
 
+    const testName = "collection_validator_feature_compatibility_version";
+    const dbpath = MongoRunner.dataPath + testName;
+
     /**
      * Tests the correct behavior of a collection validator using 3.6 query features with different
      * binary versions and feature compatibility versions. 'validator' should be a collection
@@ -16,8 +19,6 @@
      * does not match 'validator'.
      */
     function testValidator(validator, nonMatchingDocument) {
-        const testName = "collection_validator_feature_compatibility_version";
-        const dbpath = MongoRunner.dataPath + testName;
         resetDbpath(dbpath);
 
         let conn = MongoRunner.runMongod({dbpath: dbpath, binVersion: "latest"});

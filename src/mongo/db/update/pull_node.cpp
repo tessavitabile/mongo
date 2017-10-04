@@ -45,8 +45,7 @@ public:
         : _matchExpr(matchCondition,
                      expCtx,
                      stdx::make_unique<ExtensionsCallbackNoop>(),
-                     MatchExpressionParser::kDefaultSpecialFeatures &
-                         ~MatchExpressionParser::AllowedFeatures::kExpr) {}
+                     MatchExpressionParser::kBanAllSpecialFeatures) {}
 
     std::unique_ptr<ElementMatcher> clone() const final {
         return stdx::make_unique<ObjectMatcher>(*this);
@@ -82,8 +81,7 @@ public:
         : _matchExpr(matchCondition.wrap(""),
                      expCtx,
                      stdx::make_unique<ExtensionsCallbackNoop>(),
-                     MatchExpressionParser::kDefaultSpecialFeatures &
-                         ~MatchExpressionParser::AllowedFeatures::kExpr) {}
+                     MatchExpressionParser::kBanAllSpecialFeatures) {}
 
     std::unique_ptr<ElementMatcher> clone() const final {
         return stdx::make_unique<WrappedObjectMatcher>(*this);

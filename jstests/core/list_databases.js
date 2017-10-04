@@ -68,6 +68,10 @@
     assert.eq(1, cmdRes.databases.length, tojson(cmdRes));
     assert.eq("jstest_list_databases_zap", cmdRes.databases[0].name, tojson(cmdRes));
 
+    // $expr with an unbound variable in filter.
+    assert.commandFailed(
+        db.adminCommand({listDatabases: 1, filter: {$expr: {$eq: ["$name", "$$unbound"]}}}));
+
     // No extensions are allowed in filters.
     assert.commandFailed(db.adminCommand({listDatabases: 1, filter: {$text: {$search: "str"}}}));
     assert.commandFailed(db.adminCommand({

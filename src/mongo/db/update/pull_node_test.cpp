@@ -120,6 +120,15 @@ TEST(PullNodeTest, InitWithExprObjectFails) {
     ASSERT_EQUALS(ErrorCodes::QueryFeatureNotAllowed, status);
 }
 
+TEST(PullNodeTest, InitWithJSONSchemaFails) {
+    auto update = fromjson("{$pull: {a: {$jsonSchema: {}}}}");
+    boost::intrusive_ptr<ExpressionContextForTest> expCtx(new ExpressionContextForTest());
+    PullNode node;
+    auto status = node.init(update["$pull"]["a"], expCtx);
+    ASSERT_NOT_OK(status);
+    ASSERT_EQUALS(ErrorCodes::QueryFeatureNotAllowed, status);
+}
+
 TEST_F(PullNodeTest, TargetNotFound) {
     auto update = fromjson("{$pull : {a: {$lt: 1}}}");
     boost::intrusive_ptr<ExpressionContextForTest> expCtx(new ExpressionContextForTest());
