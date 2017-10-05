@@ -134,7 +134,7 @@ Status ParsedUpdate::parseQueryToCQ() {
         // The default error message for disallowed $expr is not descriptive enough, so we rewrite
         // it here.
         return {ErrorCodes::QueryFeatureNotAllowed,
-                "$expr is not allowed in the query for an upsert"};
+                "$expr is not allowed in the query predicate for an upsert"};
     }
 
     return statusWithCQ.getStatus();

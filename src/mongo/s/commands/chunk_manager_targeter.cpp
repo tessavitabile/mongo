@@ -426,7 +426,7 @@ Status ChunkManagerTargeter::targetUpdate(
         // The default error message for disallowed $expr is not descriptive enough, so we rewrite
         // it here.
         return {ErrorCodes::QueryFeatureNotAllowed,
-                "$expr is not allowed in the query for an upsert"};
+                "$expr is not allowed in the query predicate for an upsert"};
     }
     if (!cq.isOK()) {
         return Status(cq.getStatus().code(),

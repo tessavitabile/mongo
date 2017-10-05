@@ -25,7 +25,6 @@
         assert.neq(null, conn, "mongod was unable to start up");
 
         let testDB = conn.getDB(testName);
-        assert.commandWorked(testDB.dropDatabase());
 
         let adminDB = conn.getDB("admin");
 
@@ -40,6 +39,8 @@
         assert.writeError(coll.insert(nonMatchingDocument), ErrorCodes.DocumentValidationFailure);
 
         // Set a validator using 3.6 query features on an existing collection.
+        coll.drop();
+        assert.commandWorked(testDB.createCollection("coll"));
         assert.commandWorked(testDB.runCommand({collMod: "coll", validator: validator}));
 
         // Another failing update.
@@ -55,18 +56,17 @@
         // while feature compatibility version is 3.4.
         let res = testDB.createCollection("coll2", {validator: validator});
         assert.commandFailedWithCode(res, ErrorCodes.QueryFeatureNotAllowed);
-        assert(
-            res.errmsg.match(/featureCompatibilityVersion/),
-            "Expected error message from createCollection referencing 'featureCompatibilityVersion' but instead got: " +
-                res.errmsg);
+        assert(res.errmsg.match(/featureCompatibilityVersion/),
+               "Expected error message from createCollection referencing " +
+                   "'featureCompatibilityVersion' but instead got: " + res.errmsg);
 
         // Trying to update a collection with a validator using 3.6 query features should also fail.
         res = testDB.runCommand({collMod: "coll", validator: validator});
         assert.commandFailedWithCode(res, ErrorCodes.QueryFeatureNotAllowed);
         assert(
             res.errmsg.match(/featureCompatibilityVersion/),
-            "Expected error message from collMod referencing 'featureCompatibilityVersion' but instead got: " +
-                res.errmsg);
+            "Expected error message from collMod referencing 'featureCompatibilityVersion' but " +
+                "instead got: " + res.errmsg);
 
         MongoRunner.stopMongod(conn);
 
@@ -142,6 +142,8 @@
 
         // We should also be able to modify a collection to have a validator using 3.6 query
         // features.
+        testDB.coll3.drop();
+        assert.commandWorked(testDB.createCollection("coll3"));
         assert.commandWorked(testDB.runCommand({collMod: "coll3", validator: validator}));
 
         MongoRunner.stopMongod(conn);
