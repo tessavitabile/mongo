@@ -11,7 +11,7 @@ load("jstests/aggregation/extras/utils.js");  // For "assertErrorCode".
     var local = db.local;
 
     local.drop();
-    local.insert({});
+    local.insert({b: 0});
 
     var pipeline = {$graphLookup: 4};
     assertErrorCode(
@@ -295,6 +295,10 @@ load("jstests/aggregation/extras/utils.js");  // For "assertErrorCode".
     };
     assertErrorCode(local, pipeline, 40186, "cannot use $near inside $graphLookup at any depth");
 
+    let foreign = db.foreign;
+    foreign.drop();
+    assert.writeOK(foreign.insert({a: 0, x: 0}));
+
     pipeline = {
         $graphLookup: {
             from: 'foreign',
@@ -307,8 +311,19 @@ load("jstests/aggregation/extras/utils.js");  // For "assertErrorCode".
     };
     assertErrorCode(local, pipeline, 40186, "cannot use $expr with unbound variable");
 
+    pipeline = {
+        $graphLookup: {
+            from: 'foreign',
+            startWith: {$literal: 0},
+            connectToField: "a",
+            connectFromField: "b",
+            as: "output",
+            restrictSearchWithMatch: {$expr: {$divide: [1, "$x"]}}
+        }
+    };
+    assertErrorCode(local, pipeline, 16608, "division by zero in $expr");
+
     // $graphLookup can only consume at most 100MB of memory.
-    var foreign = db.foreign;
     foreign.drop();
 
     // Here, the visited set exceeds 100MB.
