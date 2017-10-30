@@ -40,6 +40,7 @@
 #include "mongo/db/server_parameters.h"
 #include "mongo/db/service_context.h"
 #include "mongo/db/storage/storage_engine.h"
+#include "mongo/db/wire_version.h"
 #include "mongo/db/write_concern_options.h"
 #include "mongo/rpc/get_status_from_command_result.h"
 #include "mongo/transport/service_entry_point.h"
@@ -335,6 +336,7 @@ void FeatureCompatibilityVersion::onInsertOrUpdate(OperationContext* opCtx, cons
     // version that is below the minimum.
     opCtx->recoveryUnit()->onCommit([opCtx, newVersion]() {
         serverGlobalParams.featureCompatibility.setVersion(newVersion);
+        updateOutgoingMinWireVersion();
 
         // Close all connections from internal clients with binary versions lower than 3.6.
         if (newVersion != ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34) {
@@ -362,6 +364,7 @@ void FeatureCompatibilityVersion::onDelete(OperationContext* opCtx, const BSONOb
     opCtx->recoveryUnit()->onCommit([]() {
         serverGlobalParams.featureCompatibility.setVersion(
             ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34);
+        updateOutgoingMinWireVersion();
     });
 }
 
@@ -379,7 +382,25 @@ void FeatureCompatibilityVersion::onDropCollection(OperationContext* opCtx) {
     opCtx->recoveryUnit()->onCommit([]() {
         serverGlobalParams.featureCompatibility.setVersion(
             ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34);
+        updateOutgoingMinWireVersion();
     });
+}
+
+void FeatureCompatibilityVersion::updateOutgoingMinWireVersion() {
+    WireSpec& spec = WireSpec::instance();
+
+    switch (serverGlobalParams.featureCompatibility.getVersion()) {
+        case ServerGlobalParams::FeatureCompatibility::Version::kFullyUpgradedTo36:
+        case ServerGlobalParams::FeatureCompatibility::Version::kUpgradingTo36:
+        case ServerGlobalParams::FeatureCompatibility::Version::kDowngradingTo34:
+            spec.outgoing.minWireVersion = LATEST_WIRE_VERSION;
+            return;
+        case ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34:
+            spec.outgoing.minWireVersion = LATEST_WIRE_VERSION - 1;
+            return;
+        default:
+            MONGO_UNREACHABLE;
+    }
 }
 
 void FeatureCompatibilityVersion::_validateVersion(StringData version) {

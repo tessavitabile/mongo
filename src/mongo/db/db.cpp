@@ -546,6 +546,7 @@ StatusWith<bool> repairDatabasesAndCheckVersion(OperationContext* opCtx) {
                     fcvDocumentExists = true;
                     auto version = swVersion.getValue();
                     serverGlobalParams.featureCompatibility.setVersion(version);
+                    FeatureCompatibilityVersion::updateOutgoingMinWireVersion();
 
                     // On startup, if the version is in an upgrading or downrading state, print a
                     // warning.
@@ -661,6 +662,9 @@ StatusWith<bool> repairDatabasesAndCheckVersion(OperationContext* opCtx) {
 
 void initWireSpec() {
     WireSpec& spec = WireSpec::instance();
+
+    spec.outgoing.minWireVersion = LATEST_WIRE_VERSION - 1;
+    spec.outgoing.maxWireVersion = LATEST_WIRE_VERSION;
 
     spec.isInternalClient = true;
 }

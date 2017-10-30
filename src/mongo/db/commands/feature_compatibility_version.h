@@ -134,6 +134,12 @@ public:
      */
     static void onDropCollection(OperationContext* opCtx);
 
+    /**
+     * Sets the server's outgoing minWireVersion according to the current
+     * featureCompatibilityVersion value.
+     */
+    static void updateOutgoingMinWireVersion();
+
 private:
     /**
      * Validate version. Uasserts if invalid.
