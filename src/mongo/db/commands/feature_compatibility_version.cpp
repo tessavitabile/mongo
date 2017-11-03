@@ -336,14 +336,16 @@ void FeatureCompatibilityVersion::onInsertOrUpdate(OperationContext* opCtx, cons
     // version that is below the minimum.
     opCtx->recoveryUnit()->onCommit([opCtx, newVersion]() {
         serverGlobalParams.featureCompatibility.setVersion(newVersion);
-        updateOutgoingMinWireVersion();
+        updateMinWireVersion();
 
-        // Close all connections from internal clients with binary versions lower than 3.6.
+        // Close all incoming connections from internal clients with binary versions lower than 3.6.
         if (newVersion != ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34) {
             opCtx->getServiceContext()->getServiceEntryPoint()->endAllSessions(
                 transport::Session::kLatestVersionInternalClientKeepOpen |
                 transport::Session::kExternalClientKeepOpen);
         }
+        // TODO: Close all outgoing connections to servers with lower binary version when this
+        // functionality is available in the networking layer.
     });
 }
 
@@ -364,7 +366,7 @@ void FeatureCompatibilityVersion::onDelete(OperationContext* opCtx, const BSONOb
     opCtx->recoveryUnit()->onCommit([]() {
         serverGlobalParams.featureCompatibility.setVersion(
             ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34);
-        updateOutgoingMinWireVersion();
+        updateMinWireVersion();
     });
 }
 
@@ -382,23 +384,26 @@ void FeatureCompatibilityVersion::onDropCollection(OperationContext* opCtx) {
     opCtx->recoveryUnit()->onCommit([]() {
         serverGlobalParams.featureCompatibility.setVersion(
             ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34);
-        updateOutgoingMinWireVersion();
+        updateMinWireVersion();
     });
 }
 
-void FeatureCompatibilityVersion::updateOutgoingMinWireVersion() {
+void FeatureCompatibilityVersion::updateMinWireVersion() {
     WireSpec& spec = WireSpec::instance();
 
     switch (serverGlobalParams.featureCompatibility.getVersion()) {
         case ServerGlobalParams::FeatureCompatibility::Version::kFullyUpgradedTo36:
         case ServerGlobalParams::FeatureCompatibility::Version::kUpgradingTo36:
         case ServerGlobalParams::FeatureCompatibility::Version::kDowngradingTo34:
+            spec.incomingInternalClient.minWireVersion = LATEST_WIRE_VERSION;
             spec.outgoing.minWireVersion = LATEST_WIRE_VERSION;
             return;
         case ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34:
+            spec.incomingInternalClient.minWireVersion = LATEST_WIRE_VERSION - 1;
             spec.outgoing.minWireVersion = LATEST_WIRE_VERSION - 1;
             return;
-        default:
+        case ServerGlobalParams::FeatureCompatibility::Version::kUnsetDefault34Behavior:
+            // getVersion() does not return this value.
             MONGO_UNREACHABLE;
     }
 }
@@ -487,7 +492,8 @@ public:
                     FeatureCompatibilityVersion::kTargetVersionField,
                     FeatureCompatibilityVersionCommandParser::kVersion34);
                 return;
-            default:
+            case ServerGlobalParams::FeatureCompatibility::Version::kUnsetDefault34Behavior:
+                // getVersion() does not return this value.
                 MONGO_UNREACHABLE;
         }
     }

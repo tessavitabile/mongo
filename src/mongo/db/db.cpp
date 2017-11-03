@@ -546,7 +546,7 @@ StatusWith<bool> repairDatabasesAndCheckVersion(OperationContext* opCtx) {
                     fcvDocumentExists = true;
                     auto version = swVersion.getValue();
                     serverGlobalParams.featureCompatibility.setVersion(version);
-                    FeatureCompatibilityVersion::updateOutgoingMinWireVersion();
+                    FeatureCompatibilityVersion::updateMinWireVersion();
 
                     // On startup, if the version is in an upgrading or downrading state, print a
                     // warning.
@@ -662,6 +662,15 @@ StatusWith<bool> repairDatabasesAndCheckVersion(OperationContext* opCtx) {
 
 void initWireSpec() {
     WireSpec& spec = WireSpec::instance();
+
+    // Initially the server has downgrade featureCompatibilityVersion behavior, so it can connect
+    // with any server of the current or previous binary version. When the
+    // featureCompatibilityVersion document is read in repairDatabasesAndCheckVersion(), if the
+    // server has the upgrade featureCompatibilityVersion, the outgoing and internal client
+    // minWireVersion values will be bumped.
+
+    spec.incomingInternalClient.minWireVersion = LATEST_WIRE_VERSION - 1;
+    spec.incomingInternalClient.maxWireVersion = LATEST_WIRE_VERSION;
 
     spec.outgoing.minWireVersion = LATEST_WIRE_VERSION - 1;
     spec.outgoing.maxWireVersion = LATEST_WIRE_VERSION;

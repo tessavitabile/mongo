@@ -66,8 +66,10 @@ const auto kIndexVersion = IndexDescriptor::IndexVersion::kV2;
 void initWireSpec() {
     WireSpec& spec = WireSpec::instance();
     // accept from any version
-    spec.incoming.minWireVersion = RELEASE_2_4_AND_BEFORE;
-    spec.incoming.maxWireVersion = LATEST_WIRE_VERSION;
+    spec.incomingInternalClient.minWireVersion = RELEASE_2_4_AND_BEFORE;
+    spec.incomingInternalClient.maxWireVersion = LATEST_WIRE_VERSION;
+    spec.incomingExternalClient.minWireVersion = RELEASE_2_4_AND_BEFORE;
+    spec.incomingExternalClient.maxWireVersion = LATEST_WIRE_VERSION;
     // connect to any version
     spec.outgoing.minWireVersion = RELEASE_2_4_AND_BEFORE;
     spec.outgoing.maxWireVersion = LATEST_WIRE_VERSION;

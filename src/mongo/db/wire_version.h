@@ -107,13 +107,22 @@ struct WireSpec {
     static void appendInternalClientWireVersion(WireVersionInfo wireVersionInfo,
                                                 BSONObjBuilder* builder);
 
-    // incoming.minWireVersion - Minimum version that the server accepts on incoming requests. We
-    // should bump this whenever we don't want to allow incoming connections from clients that are
-    // too old.
+    // incomingExternalClient.minWireVersion - Minimum version that the server accepts on incoming
+    // requests from external clients. We should bump this whenever we don't want to allow incoming
+    // connections from clients that are too old.
 
-    // incoming.maxWireVersion - Latest version that the server accepts on incoming requests. This
-    // should always be at the latest entry in WireVersion.
-    WireVersionInfo incoming = {RELEASE_2_4_AND_BEFORE, LATEST_WIRE_VERSION};
+    // incomingExternalClient.maxWireVersion - Latest version that the server accepts on incoming
+    // requests from external clients. This should always be at the latest entry in WireVersion.
+    WireVersionInfo incomingExternalClient = {RELEASE_2_4_AND_BEFORE, LATEST_WIRE_VERSION};
+
+    // incomingInternalClient.minWireVersion - Minimum version that the server accepts on incoming
+    // requests from internal clients. This should be incomingInternalClient.maxWireVersion - 1,
+    // when the featureCompatibilityVersion is equal to the downgrade version, and
+    // incomingInternalClient.maxWireVersion otherwise.
+
+    // incomingInternalClient.maxWireVersion - Latest version that the server accepts on incoming
+    // requests. This should always be at the latest entry in WireVersion.
+    WireVersionInfo incomingInternalClient = {RELEASE_2_4_AND_BEFORE, LATEST_WIRE_VERSION};
 
     // outgoing.minWireVersion - Minimum version allowed on remote nodes when the server sends
     // requests. We should bump this whenever we don't want to connect to clients that are too old.

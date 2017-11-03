@@ -3,6 +3,8 @@
 (function() {
     "use strict";
 
+    load("jstests/libs/write_concern_util.js");
+
     const latest = "latest";
     const downgrade = "3.4";
 
@@ -10,17 +12,21 @@
     const downgradeFCV = "3.4";
 
     function testProtocolVersion(protocolVersion) {
+        jsTestLog("Testing connections between mixed-version mixed-featureCompatibilityVersion " +
+                  "nodes in a replica set using protocol version " + protocolVersion);
+
         // Start a new replica set with two latest version nodes.
         let rst = new ReplSetTest({
             protocolVersion: protocolVersion,
-            nodes: [{binVersion: latest}, {binVersion: latest, rsConfig: {priority: 0}}]
+            nodes: [{binVersion: latest}, {binVersion: latest, rsConfig: {priority: 0}}],
+            settings: {chainingAllowed: false}
         });
         rst.startSet();
 
         // The default value for 'catchUpTimeoutMillis' on 3.6 is -1. A 3.4 secondary will refuse to
         // join a replica set with catchUpTimeoutMillis=-1.
         let replSetConfig = rst.getReplSetConfig();
-        replSetConfig.settings = {catchUpTimeoutMillis: 2000};
+        replSetConfig.settings.catchUpTimeoutMillis = 2000;
         rst.initiate(replSetConfig);
 
         let primary = rst.getPrimary();
@@ -35,13 +41,12 @@
         let downgradeSecondary = rst.add({binVersion: downgrade, rsConfig: {priority: 0}});
         rst.reInitiate();
 
-        // Verify that the downgrade secondary successfully performed its initial sync.
-        assert.writeOK(
-            primary.getDB("test").coll.insert({awaitRepl: true}, {writeConcern: {w: 3}}));
+        // Wait for the downgrade secondary to finish initial sync.
+        rst.awaitSecondaryNodes();
+        rst.awaitReplication();
 
         // Stop replication on the downgrade secondary.
-        assert.commandWorked(downgradeSecondary.adminCommand(
-            {configureFailPoint: 'stopReplProducer', mode: 'alwaysOn'}));
+        stopServerReplication(downgradeSecondary);
 
         // Set the featureCompatibilityVersion to the upgrade version. This will not replicate to
         // the downgrade secondary, but the downgrade secondary will no longer be able to

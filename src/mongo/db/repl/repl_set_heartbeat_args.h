@@ -78,7 +78,8 @@ public:
     }
 
     /**
-     * Gets the heartbeat version number of the sender.
+     * Gets the heartbeat version number of the sender. This field was added to ensure that
+     * heartbeats sent from featureCompatibilityVersion 3.6 nodes to binary version 3.4 nodes fail.
      */
     long long getHeartbeatVersion() const {
         return _heartbeatVersion;

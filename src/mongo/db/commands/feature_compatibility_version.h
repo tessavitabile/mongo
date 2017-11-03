@@ -135,10 +135,10 @@ public:
     static void onDropCollection(OperationContext* opCtx);
 
     /**
-     * Sets the server's outgoing minWireVersion according to the current
-     * featureCompatibilityVersion value.
+     * Sets the server's outgoing and incomingInternalClient minWireVersions according to the
+     * current featureCompatibilityVersion value.
      */
-    static void updateOutgoingMinWireVersion();
+    static void updateMinWireVersion();
 
 private:
     /**
