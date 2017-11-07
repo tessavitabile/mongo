@@ -59,6 +59,7 @@
         // The primary should step down, since it can no longer see a majority of the replica set.
         rst.waitForState(primary, ReplSetTest.State.SECONDARY);
 
+        restartServerReplication(downgradeSecondary);
         rst.stopSet();
     }
 

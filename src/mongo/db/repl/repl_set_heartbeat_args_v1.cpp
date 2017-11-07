@@ -76,7 +76,7 @@ Status ReplSetHeartbeatArgsV1::initialize(const BSONObj& argsObj) {
     status = bsonExtractIntegerField(argsObj, kHeartbeatVersionFieldName, &tempHeartbeatVersion);
     if (status.isOK()) {
         if (tempHeartbeatVersion != 1) {
-            return Status(ErrorCodes::BadValue,
+            return Status(ErrorCodes::Error(40662),
                           str::stream() << "Found invalid value for field "
                                         << kHeartbeatVersionFieldName
                                         << ": "

@@ -338,14 +338,14 @@ void FeatureCompatibilityVersion::onInsertOrUpdate(OperationContext* opCtx, cons
         serverGlobalParams.featureCompatibility.setVersion(newVersion);
         updateMinWireVersion();
 
-        // Close all incoming connections from internal clients with binary versions lower than 3.6.
+        // Close all incoming connections from internal clients with binary versions lower than
+        // ours. It would be desirable to close all outgoing connections to servers with lower
+        // binary version, but it is not currently possible.
         if (newVersion != ServerGlobalParams::FeatureCompatibility::Version::kFullyDowngradedTo34) {
             opCtx->getServiceContext()->getServiceEntryPoint()->endAllSessions(
                 transport::Session::kLatestVersionInternalClientKeepOpen |
                 transport::Session::kExternalClientKeepOpen);
         }
-        // TODO: Close all outgoing connections to servers with lower binary version when this
-        // functionality is available in the networking layer.
     });
 }
 

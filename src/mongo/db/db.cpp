@@ -663,11 +663,8 @@ StatusWith<bool> repairDatabasesAndCheckVersion(OperationContext* opCtx) {
 void initWireSpec() {
     WireSpec& spec = WireSpec::instance();
 
-    // Initially the server has downgrade featureCompatibilityVersion behavior, so it can connect
-    // with any server of the current or previous binary version. When the
-    // featureCompatibilityVersion document is read in repairDatabasesAndCheckVersion(), if the
-    // server has the upgrade featureCompatibilityVersion, the outgoing and internal client
-    // minWireVersion values will be bumped.
+    // The featureCompatibilityVersion behavior defaults to the downgrade behavior while the
+    // in-memory version is unset.
 
     spec.incomingInternalClient.minWireVersion = LATEST_WIRE_VERSION - 1;
     spec.incomingInternalClient.maxWireVersion = LATEST_WIRE_VERSION;
