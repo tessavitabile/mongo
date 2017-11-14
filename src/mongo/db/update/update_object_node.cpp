@@ -129,7 +129,8 @@ void applyChild(const UpdateNode& child,
         // We are traversing path components that do not exist in our document. Any update modifier
         // that creates new path components (i.e., any modifiers that return true for
         // allowCreation()) will need to create this component, so we append it to the
-        // 'pathToCreate' FieldRef.
+        // 'pathToCreate' FieldRef. If the component cannot be created, pathsupport::createPathAt()
+        // will provide a sensible PathNotViable UserError.
         childElement = applyParams->element;
         applyParams->pathToCreate->appendPart(field);
     }
