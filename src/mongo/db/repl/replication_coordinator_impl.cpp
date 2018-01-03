@@ -1185,10 +1185,17 @@ Status ReplicationCoordinatorImpl::_validateReadConcern(OperationContext* opCtx,
 
     if (readConcern.getArgsClusterTime() &&
         readConcern.getLevel() != ReadConcernLevel::kMajorityReadConcern &&
-        readConcern.getLevel() != ReadConcernLevel::kLocalReadConcern) {
+        readConcern.getLevel() != ReadConcernLevel::kLocalReadConcern &&
+        readConcern.getLevel() != ReadConcernLevel::kSnapshotReadConcern) {
         return {ErrorCodes::BadValue,
-                "Only readConcern level 'majority' or 'local' is allowed when specifying "
+                "Only readConcern level 'majority', 'local', or 'snapshot' is allowed when specifying "
                 "afterClusterTime"};
+    }
+
+    if (readConcern.getArgsPointInTime() &&
+        readConcern.getLevel() != ReadConcernLevel::kSnapshotReadConcern) {
+        return {ErrorCodes::BadValue,
+                "Only readConcern level 'snapshot' is allowed when specifying afterClusterTime"};
     }
 
     if (readConcern.getLevel() == ReadConcernLevel::kMajorityReadConcern &&

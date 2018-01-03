@@ -48,7 +48,8 @@ enum class ReadConcernLevel {
     kLocalReadConcern,
     kMajorityReadConcern,
     kLinearizableReadConcern,
-    kAvailableReadConcern
+    kAvailableReadConcern,
+    kSnapshotReadConcern
 };
 
 class ReadConcernArgs {
@@ -75,14 +76,15 @@ public:
      *    find: "coll"
      *    filter: <Query Object>,
      *    readConcern: { // optional
-     *      level: "[majority|local|linearizable|available]",
+     *      level: "[majority|local|linearizable|available|snapshot]",
      *      afterOpTime: { ts: <timestamp>, term: <NumberLong> },
      *      afterClusterTime: <timestamp>,
+     *      atClusterTime: <timestamp>
      *    }
      * }
      */
-    Status initialize(const BSONObj& cmdObj, bool testMode = false) {
-        return initialize(cmdObj[kReadConcernFieldName], testMode);
+    Status initialize(const BSONObj& cmdObj) {
+        return initialize(cmdObj[kReadConcernFieldName]);
     }
 
     /**
@@ -90,7 +92,7 @@ public:
      * Use this if you are already iterating over the fields in the command object.
      * This method correctly handles missing BSONElements.
      */
-    Status initialize(const BSONElement& readConcernElem, bool testMode = false);
+    Status initialize(const BSONElement& readConcernElem);
 
     /**
      * Appends level and afterOpTime.
@@ -133,7 +135,9 @@ private:
      *  Read data after cluster-wide cluster time.
      */
     boost::optional<LogicalTime> _clusterTime;
-
+    /**
+     * Read data at a particular cluster time.
+     */
     boost::optional<LogicalTime> _pointInTime;
     boost::optional<ReadConcernLevel> _level;
 };

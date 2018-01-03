@@ -233,6 +233,19 @@ Status waitForReadConcern(OperationContext* opCtx,
         }
     }
 
+    if (readConcernArgs.getLevel() == repl::ReadConcernLevel::kSnapshotReadConcern) {
+        if (replCoord->getReplicationMode() != repl::ReplicationCoordinator::modeReplSet) {
+            return {ErrorCodes::NotAReplicaSet,
+                    "node needs to be a replica set member to use readConcern: snapshot"};
+        }
+
+        if (!replCoord->isV1ElectionProtocol()) {
+            return {
+                ErrorCodes::IncompatibleElectionProtocol,
+                "Replica sets running protocol version 0 do not support readConcern: snapshot"};
+        }
+    }
+
     auto afterClusterTime = readConcernArgs.getArgsClusterTime();
     if (afterClusterTime) {
         if (!allowAfterClusterTime) {
