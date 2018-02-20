@@ -553,7 +553,12 @@ static SingleWriteResult performSingleUpdateOp(OperationContext* opCtx,
     request.setArrayFilters(write_ops::arrayFiltersOf(op));
     request.setMulti(op.getMulti());
     request.setUpsert(op.getUpsert());
-    request.setYieldPolicy(PlanExecutor::YIELD_AUTO);  // ParsedUpdate overrides this for $isolated.
+
+    auto readConcernArgs = repl::ReadConcernArgs::get(opCtx);
+    request.setYieldPolicy(
+        readConcernArgs.getLevel() == repl::ReadConcernLevel::kSnapshotReadConcern
+            ? PlanExecutor::INTERRUPT_ONLY
+            : PlanExecutor::YIELD_AUTO);  // ParsedUpdate overrides this for $isolated.
 
     ParsedUpdate parsedUpdate(opCtx, &request);
     uassertStatusOK(parsedUpdate.parseRequest());
@@ -622,7 +627,9 @@ static SingleWriteResult performSingleUpdateOp(OperationContext* opCtx,
 }
 
 WriteResult performUpdates(OperationContext* opCtx, const write_ops::Update& wholeOp) {
-    invariant(!opCtx->lockState()->inAWriteUnitOfWork());  // Does own retries.
+    // Update performs its own retries, so we should not be in a WriteUnitOfWork unless we are in a
+    // transaction.
+    invariant(opCtx->getWriteUnitOfWork() || !opCtx->lockState()->inAWriteUnitOfWork());
     uassertStatusOK(userAllowedWriteNS(wholeOp.getNamespace()));
 
     DisableDocumentValidationIfTrue docValidationDisabler(

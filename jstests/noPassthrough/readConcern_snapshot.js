@@ -183,15 +183,13 @@
     }),
                                  ErrorCodes.InvalidOptions);
 
-    // readConcern 'snapshot' is not supported by update.
-    // TODO SERVER-33354: Add snapshot support for update.
-    assert.commandFailedWithCode(sessionDb.runCommand({
+    // readConcern 'snapshot' is supported by update.
+    assert.commandWorked(sessionDb.runCommand({
         update: collName,
         updates: [{q: {}, u: {$set: {a: 1}}}],
         readConcern: {level: "snapshot"},
         txnNumber: NumberLong(txnNumber++)
-    }),
-                                 ErrorCodes.InvalidOptions);
+    }));
 
     // readConcern 'snapshot' is not supported by delete.
     // TODO SERVER-33354: Add snapshot support for delete.
