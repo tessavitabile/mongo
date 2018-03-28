@@ -130,6 +130,20 @@ const StringMap<int> sessionCheckoutWhitelist = {{"abortTransaction", 1},
                                                  {"refreshLogicalSessionCacheNow", 1},
                                                  {"update", 1}};
 
+// The command names that are allowed in a multi-document transaction.
+const StringMap<int> txnCmdWhitelist = {{"abortTransaction", 1},
+                                        {"aggregate", 1},
+                                        {"commitTransaction", 1},
+                                        {"delete", 1},
+                                        {"doTxn", 1},
+                                        {"find", 1},
+                                        {"findandmodify", 1},
+                                        {"findAndModify", 1},
+                                        {"getMore", 1},
+                                        {"insert", 1},
+                                        {"prepareTransaction", 1},
+                                        {"update", 1}};
+
 void generateLegacyQueryErrorResponse(const AssertionException* exception,
                                       const QueryMessage& queryMessage,
                                       CurOp* curop,
@@ -552,6 +566,18 @@ void execCommandDatabase(OperationContext* opCtx,
         }
 
         OperationContextSession sessionTxnState(opCtx, shouldCheckoutSession, autocommitVal);
+
+        // If we are in a multi-document transaction, ensure the command is allowed in this context.
+        // We do not check this in DBDirectClient, since 'aggregate' is allowed in transactions, but
+        // 'geoNear' is not, and 'aggregate' can run 'geoNear' in DBDirectClient.
+        if (!opCtx->getClient()->isInDirectClient()) {
+            auto session = OperationContextSession::get(opCtx);
+            uassert(ErrorCodes::CommandFailed,
+                    str::stream() << "Cannot run '" << command->getName()
+                                  << "' in a multi-document transaction.",
+                    !session || !session->inMultiDocumentTransaction() ||
+                        txnCmdWhitelist.find(command->getName()) != txnCmdWhitelist.cend());
+        }
 
         const auto dbname = request.getDatabase().toString();
         uassert(
