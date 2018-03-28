@@ -566,6 +566,7 @@ void execCommandDatabase(OperationContext* opCtx,
         BSONElement allowImplicitCollectionCreationField;
         BSONElement helpField;
         BSONElement queryOptionMaxTimeMSField;
+        BSONElement stmtIdField;
 
         StringMap<int> topLevelFields;
         for (auto&& element : request.body) {
@@ -578,6 +579,8 @@ void execCommandDatabase(OperationContext* opCtx,
                 helpField = element;
             } else if (fieldName == QueryRequest::queryOptionMaxTimeMS) {
                 queryOptionMaxTimeMSField = element;
+            } else if (fieldName == "stmtId") {
+                stmtIdField = element;
             }
 
             uassert(ErrorCodes::FailedToParse,
@@ -585,6 +588,11 @@ void execCommandDatabase(OperationContext* opCtx,
                                   << fieldName,
                     topLevelFields[fieldName]++ == 0);
         }
+
+        auto session = OperationContextSession::get(opCtx);
+        uassert(ErrorCodes::FailedToParse,
+                "All commands in multi-statement transactions must have a stmtId field.",
+                stmtIdField || !session || !session->inMultiDocumentTransaction());
 
         if (CommandHelpers::isHelpRequest(helpField)) {
             CurOp::get(opCtx)->ensureStarted();

@@ -7,6 +7,7 @@
     var session = db.getMongo().startSession();
     var sessionDb = session.getDatabase("test");
     var txnNumber = 0;
+    var stmtId = 0;
 
     var t = db.doTxn;
     t.drop();
@@ -18,7 +19,8 @@
             {op: 'i', ns: t.getFullName(), o: {_id: ObjectId(), x: 1}},
             {op: 'c', ns: "invalid", o: {create: "t"}},
         ],
-        txnNumber: NumberLong(txnNumber++)
+        txnNumber: NumberLong(txnNumber++),
+        stmtId: NumberInt(stmtId)
     }),
                                  ErrorCodes.InvalidOptions);
     assert.eq(t.count({x: 1}), 0);
@@ -30,7 +32,8 @@
             {op: 'i', ns: t.getFullName(), o: {_id: ObjectId(), x: 1}},
             {op: 'i', ns: t.getFullName(), o: {_id: tooLong, x: 1}},
         ],
-        txnNumber: NumberLong(txnNumber++)
+        txnNumber: NumberLong(txnNumber++),
+        stmtId: NumberInt(stmtId)
     }),
                                  ErrorCodes.KeyTooLong);
     assert.eq(t.count({x: 1}), 0);
@@ -43,7 +46,8 @@
     // a NamespaceNotFound error.
     assert.commandFailedWithCode(newDB.runCommand({
         doTxn: [{op: "u", ns: newDBName + ".foo", o: {_id: 5, x: 17}, o2: {_id: 5, x: 16}}],
-        txnNumber: NumberLong(txnNumber++)
+        txnNumber: NumberLong(txnNumber++),
+        stmtId: NumberInt(stmtId)
     }),
                                  ErrorCodes.NamespaceNotFound);
 
@@ -66,7 +70,8 @@
         }
 
         let res = [cappedOps, multiOps].map(
-            (doTxn) => newDB.runCommand({doTxn: doTxn, txnNumber: NumberLong(txnNumber++)}));
+            (doTxn) => newDB.runCommand(
+                {doTxn: doTxn, txnNumber: NumberLong(txnNumber++), stmtId: NumberInt(stmtId)}));
         sawTooManyLocksError |= res.some((res) => res.code === ErrorCodes.TooManyLocks);
         // Transactions involving just two collections should succeed.
         if (n <= 2)
