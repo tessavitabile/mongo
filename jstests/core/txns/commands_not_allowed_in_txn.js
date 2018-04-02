@@ -69,7 +69,7 @@
             ErrorCodes.CommandFailed);
         assert.commandWorked(
             sessionDb.runCommand({commitTransaction: 1, txnNumber: NumberLong(txnNumber)}));
-    };
+    }
 
     //
     // Test commands that check out the session but are not allowed in multi-document transactions.
