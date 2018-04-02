@@ -26,8 +26,50 @@
         ],
         writeConcern: {w: "majority"}
     }));
-    assert.commandWorked(
-        testDB.createCollection("drop_collection", {writeConcern: {w: "majority"}}));
+
+    function setup() {
+        testColl.dropIndex({a: 1});
+        testDB.create_collection.drop();
+        testDB.drop_collection.drop();
+        assert.commandWorked(
+            testDB.createCollection("drop_collection", {writeConcern: {w: "majority"}}));
+    }
+
+    function testCommand(command) {
+        jsTest.log("Testing command: " + tojson(command));
+
+        // Check that the command runs successfully outside transactions.
+        setup();
+        assert.commandWorked(sessionDb.runCommand(command));
+
+        // Check that the command cannot be used to start a transaction.
+        setup();
+        assert.commandFailedWithCode(sessionDb.runCommand(Object.extend(command, {
+            readConcern: {level: "snapshot"},
+            txnNumber: NumberLong(++txnNumber),
+            autocommit: false
+        })),
+                                     ErrorCodes.CommandFailed);
+        assert.commandFailedWithCode(
+            sessionDb.runCommand({commitTransaction: 1, txnNumber: NumberLong(txnNumber)}),
+            ErrorCodes.NoSuchTransaction);
+
+        // Check that the command fails inside a transaction, but does not abort the transaction.
+        setup();
+        assert.commandWorked(sessionDb.runCommand({
+            insert: collName,
+            documents: [{}],
+            readConcern: {level: "snapshot"},
+            txnNumber: NumberLong(++txnNumber),
+            autocommit: false
+        }));
+        assert.commandFailedWithCode(
+            sessionDb.runCommand(
+                Object.extend(command, {txnNumber: NumberLong(txnNumber), autocommit: false})),
+            ErrorCodes.CommandFailed);
+        assert.commandWorked(
+            sessionDb.runCommand({commitTransaction: 1, txnNumber: NumberLong(txnNumber)}));
+    };
 
     //
     // Test commands that check out the session but are not allowed in multi-document transactions.
@@ -49,25 +91,11 @@
         {refreshLogicalSessionCacheNow: 1}
     ];
 
-    sessionCommands.forEach(function(command) {
-        jsTest.log("Testing command: " + tojson(command));
-
-        // Check that the command runs successfully outside transactions.
-        assert.commandWorked(sessionDb.runCommand(command));
-
-        // Check that the command fails inside transactions.
-        assert.commandFailedWithCode(
-            sessionDb.runCommand(
-                Object.extend(command, {txnNumber: NumberLong(++txnNumber), autocommit: false})),
-            ErrorCodes.CommandFailed);
-
-        // It is still possible to commit the transaction.
-        assert.commandWorked(
-            sessionDb.runCommand({commitTransaction: 1, txnNumber: NumberLong(txnNumber)}));
-    });
+    sessionCommands.forEach(testCommand);
 
     //
-    // Test a selection of commands that do not check out the session.
+    // Test a selection of commands that do not check out the session. It is illegal to provide a
+    // 'txnNumber' on these commands.
     //
 
     const nonSessionCommands = [
@@ -80,17 +108,13 @@
         }
     ];
 
+    nonSessionCommands.forEach(testCommand);
+
     nonSessionCommands.forEach(function(command) {
-        jsTest.log("Testing command: " + tojson(command));
-
-        // The command succeeds, but does not create a transaction.
-        assert.commandWorked(sessionDb.runCommand(
-            Object.extend(command, {txnNumber: NumberLong(++txnNumber), autocommit: false})));
-
-        // We cannot commit the transaction, since it does not exist.
+        setup();
         assert.commandFailedWithCode(
-            sessionDb.runCommand({commitTransaction: 1, txnNumber: NumberLong(txnNumber)}),
-            ErrorCodes.NoSuchTransaction);
+            sessionDb.runCommand(Object.extend(command, {txnNumber: NumberLong(++txnNumber)})),
+            ErrorCodes.CommandFailed);
     });
 
     //
@@ -108,6 +132,9 @@
         txnNumber: NumberLong(txnNumber)
     }),
                                  ErrorCodes.IllegalOperation);
+
+    // It is still possible to commit the transaction. The rejected command does not abort the
+    // transaction.
     assert.commandWorked(
         sessionDb.runCommand({commitTransaction: 1, txnNumber: NumberLong(txnNumber)}));
 

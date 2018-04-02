@@ -565,6 +565,20 @@ void execCommandDatabase(OperationContext* opCtx,
             autocommitVal = false;
         }
 
+        uassert(ErrorCodes::CommandFailed,
+                str::stream() << "Cannot run '" << command->getName()
+                              << "' in a multi-document transaction.",
+                !autocommitVal ||
+                    txnCmdWhitelist.find(command->getName()) != txnCmdWhitelist.cend());
+
+        // Reject commands with 'txnNumber' that do not check out the Session, since no retryable
+        // writes or transaction machinery will be used to execute commands that do not check out
+        // the Session.
+        uassert(ErrorCodes::CommandFailed,
+                str::stream() << "It is illegal to provide a txnNumber for command "
+                              << command->getName(),
+                shouldCheckoutSession || !opCtx->getTxnNumber());
+
         OperationContextSession sessionTxnState(opCtx, shouldCheckoutSession, autocommitVal);
 
         // If we are in a multi-document transaction, ensure the command is allowed in this context.
@@ -572,6 +586,9 @@ void execCommandDatabase(OperationContext* opCtx,
         // 'geoNear' is not, and 'aggregate' can run 'geoNear' in DBDirectClient.
         if (!opCtx->getClient()->isInDirectClient()) {
             auto session = OperationContextSession::get(opCtx);
+
+            // TODO SERVER-34051: This uassert can be changed to an invariant, since autocommit is
+            // provided on every statement in a transaction.
             uassert(ErrorCodes::CommandFailed,
                     str::stream() << "Cannot run '" << command->getName()
                                   << "' in a multi-document transaction.",
