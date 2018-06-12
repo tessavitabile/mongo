@@ -377,6 +377,7 @@ TEST_F(LogicalSessionIdTest, InitializeOperationSessionInfo_IgnoresInfoIfNoCache
                        << "TestField"),
         true,
         true,
+        true,
         true));
 }
 
