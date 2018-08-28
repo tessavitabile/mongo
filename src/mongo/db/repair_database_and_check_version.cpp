@@ -146,6 +146,7 @@ Status ensureAllCollectionsHaveUUIDs(OperationContext* opCtx,
         invariant(db);
         for (auto collectionIt = db->begin(); collectionIt != db->end(); ++collectionIt) {
             Collection* coll = *collectionIt;
+            log() << "Checking collection " << coll->ns().coll();
             // The presence of system.indexes or system.namespaces on wiredTiger may
             // have undesirable results (see SERVER-32894, SERVER-34482). It is okay to
             // drop these collections on wiredTiger because users are not permitted to
@@ -305,7 +306,7 @@ StatusWith<bool> repairDatabasesAndCheckVersion(OperationContext* opCtx) {
         }
 
         for (const auto& dbName : dbNames) {
-            LOG(1) << "    Repairing database: " << dbName;
+            log() << "    Repairing database: " << dbName;
             fassertNoTrace(18506, repairDatabase(opCtx, storageEngine, dbName));
         }
 

@@ -61,7 +61,7 @@ void checkNS(OperationContext* opCtx, const std::list<std::string>& nsToCheck) {
          ++it) {
         NamespaceString nss(*it);
 
-        LOG(3) << "IndexRebuilder::checkNS: " << nss.ns();
+        log() << "IndexRebuilder::checkNS: " << nss.ns();
 
         // This write lock is held throughout the index building process for this namespace.
         Lock::DBLock lk(opCtx, nss.db(), MODE_X);
